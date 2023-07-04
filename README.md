@@ -1,0 +1,1 @@
+What happens here is that we are passing the index of the string as input to the castVote function. So my first inference is that the wasm will be able to read the candidates from the specified index.
