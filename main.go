@@ -22,8 +22,8 @@ type WasmtimeRuntime struct {
 }
 
 type User struct {
-	name string
-	vote string
+	DID  string
+	Vote int
 }
 
 type Count struct {
@@ -43,7 +43,6 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 	wasmBytes, _ := os.ReadFile(wasmFile)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
-	fmt.Println(instance) // This instance is returning <nil>
 	r.memory = instance.GetExport(r.store, "memory").Memory()
 	r.handler = instance.GetFunc(r.store, "handler")
 }
@@ -53,7 +52,6 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 }
 
 func (r *WasmtimeRuntime) dumpOutput(pointer int32, uservote int32, red int32, blue int32, length int32) {
-	fmt.Println("Function dumpOutput called")
 	fmt.Println("red :", red)
 	fmt.Println("blue :", blue)
 	fmt.Println("uservote :", uservote)
@@ -73,6 +71,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, uservote int32, red int32, b
 		log.Fatal(err)
 	}
 }
+
 func (r *WasmtimeRuntime) RunHandler(data []byte, did int32, vote int32, red int32, blue int32) []byte {
 	r.input = data
 	r.handler.Call(r.store, did, vote, red, blue)
@@ -87,16 +86,16 @@ func main() {
 	randvote := rand.Intn(3-1) + 1
 
 	newuser := User{}
-	newuser.name = "Alice"
-	newuser.vote = "Red"
+	newuser.DID = "QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ"
+	newuser.Vote = randvote
 
 	fmt.Println(" rand ", randvote)
 
-	name := []byte(newuser.name)
-	vote := []byte(newuser.vote)
-	//	binary.LittleEndian.PutUint32(uint32(vote, uint32(randvote))
+	did := []byte(newuser.DID)
+	vote := make([]byte, 4)
+	binary.LittleEndian.PutUint32(vote, uint32(randvote))
 
-	mergeuser := append(name, vote...)
+	mergeuser := append(did, vote...)
 	fmt.Println(" merge user ", mergeuser)
 
 	var count Count
@@ -123,5 +122,5 @@ func main() {
 
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("voting_contract/target/wasm32-unknown-unknown/debug/voting_contract.wasm")
-	runtime.RunHandler(merge, int32(len(name)), int32(len(vote)), int32(len(red)), int32(len(blue)))
+	runtime.RunHandler(merge, int32(len(did)), int32(len(vote)), int32(len(red)), int32(len(blue)))
 }
