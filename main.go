@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math/rand"
 	"os"
-	"time"
 
 	"github.com/bytecodealliance/wasmtime-go"
 )
@@ -13,74 +17,111 @@ type WasmtimeRuntime struct {
 	memory  *wasmtime.Memory
 	handler *wasmtime.Func
 
-	candidates []string
-	votes      []int
+	input  []byte
+	output []byte
 }
 
-func (r *WasmtimeRuntime) Init(wasmFile string, candidates []string) {
+type User struct {
+	name string
+	vote string
+}
+
+type Count struct {
+	Red  int
+	Blue int
+}
+
+func (r *WasmtimeRuntime) Init(wasmFile string) {
 	engine := wasmtime.NewEngine()
 	linker := wasmtime.NewLinker(engine)
 	linker.DefineWasi()
 	wasiConfig := wasmtime.NewWasiConfig()
 	r.store = wasmtime.NewStore(engine)
 	r.store.SetWasi(wasiConfig)
-	linker.FuncWrap("env", "cast_vote", r.castVote)
-	linker.FuncWrap("env", "get_results", r.getResults)
+	linker.FuncWrap("env", "load_input", r.loadInput)
+	linker.FuncWrap("env", "dump_output", r.dumpOutput)
 	wasmBytes, _ := os.ReadFile(wasmFile)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
+	fmt.Println(instance) // This instance is returning <nil>
 	r.memory = instance.GetExport(r.store, "memory").Memory()
 	r.handler = instance.GetFunc(r.store, "handler")
-	r.candidates = candidates
-	r.votes = make([]int, len(candidates))
 }
 
-func (r *WasmtimeRuntime) castVote(candidateIndex int32) {
-	if candidateIndex >= 0 && int(candidateIndex) < len(r.votes) {
-		r.votes[candidateIndex]++
+func (r *WasmtimeRuntime) loadInput(pointer int32) {
+	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
+}
+
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, uservote int32, red int32, blue int32, length int32) {
+	fmt.Println("Function dumpOutput called")
+	fmt.Println("red :", red)
+	fmt.Println("blue :", blue)
+	fmt.Println("uservote :", uservote)
+	r.output = make([]byte, length)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
+
+	count := Count{}
+	count.Red = int(red)
+	count.Blue = int(blue)
+
+	content, err := json.Marshal(count)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = ioutil.WriteFile("votefile.json", content, 0644)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
-
-func (r *WasmtimeRuntime) getResults() int32 {
-	maxVotes := 0
-	maxIndex := -1
-	for i, votes := range r.votes {
-		if votes > maxVotes {
-			maxVotes = votes
-			maxIndex = i
-		}
-	}
-	return int32(maxIndex)
-}
-
-func (r *WasmtimeRuntime) RunHandler() int32 {
-	r.handler.Call(r.store)
-	return r.getResults()
+func (r *WasmtimeRuntime) RunHandler(data []byte, did int32, vote int32, red int32, blue int32) []byte {
+	r.input = data
+	r.handler.Call(r.store, did, vote, red, blue)
+	fmt.Println("Result:", r.output)
+	return r.output
 }
 
 func main() {
-	candidates := []string{"Alice", "Bob", "Charlie"}
+
+	// choices : red=1 blue =2
+
+	randvote := rand.Intn(3-1) + 1
+
+	newuser := User{}
+	newuser.name = "Alice"
+	newuser.vote = "Red"
+
+	fmt.Println(" rand ", randvote)
+
+	name := []byte(newuser.name)
+	vote := []byte(newuser.vote)
+	//	binary.LittleEndian.PutUint32(uint32(vote, uint32(randvote))
+
+	mergeuser := append(name, vote...)
+	fmt.Println(" merge user ", mergeuser)
+
+	var count Count
+
+	byteValue, _ := ioutil.ReadFile("votefile.json")
+	json.Unmarshal(byteValue, &count)
+
+	fmt.Println("countvalue ", count)
+
+	redvote := count.Red
+	bluevote := count.Blue
+
+	red := make([]byte, 4)
+	binary.LittleEndian.PutUint32(red, uint32(redvote))
+
+	blue := make([]byte, 4)
+	binary.LittleEndian.PutUint32(blue, uint32(bluevote))
+
+	mergevote := append(red, blue...)
+	fmt.Println("mergevote ", mergevote)
+
+	merge := append(mergeuser, mergevote...)
+	fmt.Println("merge ", merge)
 
 	runtime := &WasmtimeRuntime{}
-	runtime.Init("voting_contract/target/wasm32-wasi/debug/voting_contract.wasm", candidates)
-
-	// Simulate casting votes
-	go func() {
-		for i := 0; i < 10; i++ {
-			time.Sleep(100 * time.Millisecond)
-			candidateIndex := int32(i % len(candidates))
-			runtime.castVote(candidateIndex)
-		}
-	}()
-
-	// Display results
-	for {
-		time.Sleep(500 * time.Millisecond)
-		winnerIndex := runtime.RunHandler()
-		if winnerIndex != -1 {
-			fmt.Printf("Winner: %s\n", candidates[winnerIndex])
-		} else {
-			fmt.Println("No winner yet")
-		}
-	}
+	runtime.Init("voting_contract/target/wasm32-unknown-unknown/debug/voting_contract.wasm")
+	runtime.RunHandler(merge, int32(len(name)), int32(len(vote)), int32(len(red)), int32(len(blue)))
 }
