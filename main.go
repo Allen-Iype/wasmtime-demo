@@ -89,10 +89,6 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 
 func main() {
 
-	// choices : red=1 blue =2
-
-	//randvote := rand.Intn(3-1) + 1
-
 	newuser := User{}
 	newuser.UserId = "User1"
 	newuser.BillAmount = 30
