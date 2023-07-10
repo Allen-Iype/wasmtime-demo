@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -22,13 +21,54 @@ type WasmtimeRuntime struct {
 }
 
 type User struct {
-	DID  string
-	Vote int
+	UserId     string
+	BillAmount int
+	Balance    int
+	UserStatus string
 }
 
-type Count struct {
-	Red  int
-	Blue int
+//	type PaymentStatus struct {
+//		paymentStatus string
+//	}
+func (r *WasmtimeRuntime) loadInput(pointer int32) {
+	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
+}
+
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, billPaid int32, length int32) {
+	fmt.Println("billPaid :", billPaid)
+	r.output = make([]byte, length)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
+	user := User{}
+	if billPaid == 0 {
+		fmt.Println("bill not paid, user has insufficient balance deactivating account")
+		user.UserId = string(r.output)
+		user.UserStatus = "Inactive"
+		user.Balance = 20
+		user.BillAmount = 30
+
+	} else {
+		fmt.Println("bill paid, user has sufficient balance activating account")
+		user.UserId = string(r.output)
+		user.UserStatus = "Active"
+		user.Balance = 10
+		user.BillAmount = 0
+	}
+	fmt.Println(user)
+	content, err := json.Marshal(user)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = ioutil.WriteFile("userbill.json", content, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (r *WasmtimeRuntime) RunHandler(data []byte, userid int32, billAmount int32, balance int32, userStatus int32) []byte {
+	r.input = data
+	r.handler.Call(r.store, userid, billAmount, balance, userStatus)
+	fmt.Println("Result:", r.output)
+	return r.output
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
@@ -47,80 +87,35 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 	r.handler = instance.GetFunc(r.store, "handler")
 }
 
-func (r *WasmtimeRuntime) loadInput(pointer int32) {
-	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
-}
-
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, uservote int32, red int32, blue int32, length int32) {
-	fmt.Println("red :", red)
-	fmt.Println("blue :", blue)
-	fmt.Println("uservote :", uservote)
-	r.output = make([]byte, length)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
-
-	count := Count{}
-	count.Red = int(red)
-	count.Blue = int(blue)
-
-	content, err := json.Marshal(count)
-	if err != nil {
-		fmt.Println(err)
-	}
-	err = ioutil.WriteFile("votefile.json", content, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (r *WasmtimeRuntime) RunHandler(data []byte, did int32, vote int32, red int32, blue int32) []byte {
-	r.input = data
-	r.handler.Call(r.store, did, vote, red, blue)
-	fmt.Println("Result:", r.output)
-	return r.output
-}
-
 func main() {
 
 	// choices : red=1 blue =2
 
-	randvote := rand.Intn(3-1) + 1
+	//randvote := rand.Intn(3-1) + 1
 
 	newuser := User{}
-	newuser.DID = "QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ"
-	newuser.Vote = randvote
+	newuser.UserId = "User1"
+	newuser.BillAmount = 30
+	newuser.Balance = 20
+	newuser.UserStatus = "Active"
 
-	fmt.Println(" rand ", randvote)
+	userid := []byte(newuser.UserId)
+	fmt.Println("UserId input :", userid)
+	billAmount := make([]byte, 4)
+	binary.LittleEndian.PutUint32(billAmount, uint32(newuser.BillAmount))
+	balance := make([]byte, 4)
+	binary.LittleEndian.PutUint32(balance, uint32(newuser.Balance))
+	userStatus := []byte(newuser.UserStatus)
+	fmt.Println("UserStatus input :", userStatus)
 
-	did := []byte(newuser.DID)
-	vote := make([]byte, 4)
-	binary.LittleEndian.PutUint32(vote, uint32(randvote))
-
-	mergeuser := append(did, vote...)
+	//since wasm has a linear memory we are appending all the bytes linearly
+	//mergeuser := append(userid, billAmount, balance, userStatus)
+	mergeuser := append(userid, billAmount...)
+	mergeuser = append(mergeuser, balance...)
+	mergeuser = append(mergeuser, userStatus...)
 	fmt.Println(" merge user ", mergeuser)
 
-	var count Count
-
-	byteValue, _ := ioutil.ReadFile("votefile.json")
-	json.Unmarshal(byteValue, &count)
-
-	fmt.Println("countvalue ", count)
-
-	redvote := count.Red
-	bluevote := count.Blue
-
-	red := make([]byte, 4)
-	binary.LittleEndian.PutUint32(red, uint32(redvote))
-
-	blue := make([]byte, 4)
-	binary.LittleEndian.PutUint32(blue, uint32(bluevote))
-
-	mergevote := append(red, blue...)
-	fmt.Println("mergevote ", mergevote)
-
-	merge := append(mergeuser, mergevote...)
-	fmt.Println("merge ", merge)
-
 	runtime := &WasmtimeRuntime{}
-	runtime.Init("voting_contract/target/wasm32-unknown-unknown/debug/voting_contract.wasm")
-	runtime.RunHandler(merge, int32(len(did)), int32(len(vote)), int32(len(red)), int32(len(blue)))
+	runtime.Init("bill_contract/target/wasm32-unknown-unknown/debug/bill_contract.wasm")
+	runtime.RunHandler(mergeuser, int32(len(userid)), int32(len(billAmount)), int32(len(balance)), int32(len(userStatus)))
 }
