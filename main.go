@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -21,14 +20,10 @@ type WasmtimeRuntime struct {
 	output []byte
 }
 
-type User struct {
-	DID  string
-	Vote int
-}
-
-type Count struct {
-	Red  int
-	Blue int
+type ProductReview struct {
+	DID         string
+	Rating      int
+	RatingCount int
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
@@ -51,76 +46,55 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, uservote int32, red int32, blue int32, length int32) {
-	fmt.Println("red :", red)
-	fmt.Println("blue :", blue)
-	fmt.Println("uservote :", uservote)
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, userRating int32, ratingCount int32, length int32) {
 	r.output = make([]byte, length)
 	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
 
-	count := Count{}
-	count.Red = int(red)
-	count.Blue = int(blue)
+	review := ProductReview{}
+	review.DID = string(r.output)
+	review.Rating = int(userRating)
+	review.RatingCount = int(ratingCount)
 
-	content, err := json.Marshal(count)
+	content, err := json.Marshal(review)
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = ioutil.WriteFile("votefile.json", content, 0644)
+	err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (r *WasmtimeRuntime) RunHandler(data []byte, did int32, vote int32, red int32, blue int32) []byte {
+func (r *WasmtimeRuntime) RunHandler(data []byte, did int32, rating int32, count int32) []byte {
 	r.input = data
-	r.handler.Call(r.store, did, vote, red, blue)
+	r.handler.Call(r.store, did, rating, count)
 	fmt.Println("Result:", r.output)
 	return r.output
 }
 
 func main() {
 
-	// choices : red=1 blue =2
+	var review ProductReview
+	stateUpdate, _ := os.ReadFile("store_state/rating_contract/rating.json")
+	json.Unmarshal(stateUpdate, &review)
+	randomRating := rand.Intn(5) + 1
+	ratingCount := review.RatingCount
 
-	randvote := rand.Intn(3-1) + 1
+	fmt.Println("DID : ", review.DID)
+	fmt.Println("Rating : ", randomRating)
+	fmt.Println("RatingCount : ", ratingCount)
 
-	newuser := User{}
-	newuser.DID = "QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ"
-	newuser.Vote = randvote
-
-	fmt.Println(" rand ", randvote)
-
-	did := []byte(newuser.DID)
-	vote := make([]byte, 4)
-	binary.LittleEndian.PutUint32(vote, uint32(randvote))
-
-	mergeuser := append(did, vote...)
+	did := []byte(review.DID)
+	rating := make([]byte, 4)
+	binary.LittleEndian.PutUint32(rating, uint32(randomRating))
+	count := make([]byte, 4)
+	binary.LittleEndian.PutUint32(count, uint32(ratingCount))
+	mergeuser := append(did, rating...)
 	fmt.Println(" merge user ", mergeuser)
-
-	var count Count
-
-	byteValue, _ := ioutil.ReadFile("votefile.json")
-	json.Unmarshal(byteValue, &count)
-
-	fmt.Println("countvalue ", count)
-
-	redvote := count.Red
-	bluevote := count.Blue
-
-	red := make([]byte, 4)
-	binary.LittleEndian.PutUint32(red, uint32(redvote))
-
-	blue := make([]byte, 4)
-	binary.LittleEndian.PutUint32(blue, uint32(bluevote))
-
-	mergevote := append(red, blue...)
-	fmt.Println("mergevote ", mergevote)
-
-	merge := append(mergeuser, mergevote...)
+	merge := append(mergeuser, count...)
 	fmt.Println("merge ", merge)
 
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("voting_contract/target/wasm32-unknown-unknown/debug/voting_contract.wasm")
-	runtime.RunHandler(merge, int32(len(did)), int32(len(vote)), int32(len(red)), int32(len(blue)))
+	runtime.RunHandler(merge, int32(len(did)), int32(len(rating)), int32(len(count)))
 }

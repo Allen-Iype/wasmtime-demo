@@ -66,7 +66,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, uservote int32, red int32, b
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = ioutil.WriteFile("votefile.json", content, 0644)
+	err = ioutil.WriteFile("store_state/vote_contract/votefile.json", content, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

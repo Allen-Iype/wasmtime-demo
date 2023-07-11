@@ -58,7 +58,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, billPaid int32, length int32
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = ioutil.WriteFile("userbill.json", content, 0644)
+	err = ioutil.WriteFile("store_state/bill_contract/userbill.json", content, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
