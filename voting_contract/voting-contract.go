@@ -79,7 +79,7 @@ func (r *WasmtimeRuntime) RunHandler(data []byte, did int32, vote int32, red int
 	return r.output
 }
 
-func main() {
+func voting_contract() {
 
 	// choices : red=1 blue =2
 
