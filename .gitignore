@@ -1,5 +1,2 @@
-#directory
-/target/
-
-# binary files
-.lock
+/target
+/Cargo.lock
