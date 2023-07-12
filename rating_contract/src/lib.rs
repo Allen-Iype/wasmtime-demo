@@ -1,6 +1,6 @@
 extern "C" {
     fn load_input(pointer: *mut u8);
-    fn dump_output(pointer: *const u8, user_rating: u32 , rating_count: u32, length: usize, output_ptr: *const u8,output_len: usize);
+    fn dump_output(pointer: *const u8, user_rating: f32 , rating_count: f32, length: usize, output_ptr: *const u8,output_len: usize);
 }
 
 //did,rating,count
@@ -33,12 +33,12 @@ pub extern "C" fn handler(did_length: usize , rating_length: usize , rating_coun
    
    
 
-    let mut current_rating = u32::from_ne_bytes(rating[0..rating_length].try_into().unwrap());
-    let mut total_count = u32::from_ne_bytes(rating_count[0..rating_count_length].try_into().unwrap());
-    let latest_user_rating = u32::from_ne_bytes(user_rating[0..user_rating_length].try_into().unwrap());
+    let mut current_rating = f32::from_ne_bytes(rating[0..rating_length].try_into().unwrap());
+    let mut total_count = f32::from_ne_bytes(rating_count[0..rating_count_length].try_into().unwrap());
+    let latest_user_rating = f32::from_ne_bytes(user_rating[0..user_rating_length].try_into().unwrap());
     
-    total_count += 1;
-    current_rating = (current_rating + latest_user_rating)/(total_count + 1);
+    total_count += 1.00;
+    current_rating = (current_rating + latest_user_rating)/(total_count + 1.00);
 
     // dump output data
     unsafe {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 
@@ -23,8 +24,8 @@ type WasmtimeRuntime struct {
 
 type ProductReview struct {
 	DID         string
-	Rating      int
-	RatingCount int
+	Rating      float32
+	RatingCount float32
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
@@ -47,15 +48,15 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, userRating int32, ratingCount int32, length int32, outputPtr int32, outputLen int32) {
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, length int32, outputPtr int32, outputLen int32) {
 	r.output = make([]byte, length)
 	r.outputPtr = make([]byte, outputLen)
 	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
 	copy(r.outputPtr, r.memory.UnsafeData(r.store)[pointer:outputPtr+outputLen])
 	review := ProductReview{}
 	review.DID = string(r.output)
-	review.Rating = int(userRating)
-	review.RatingCount = int(ratingCount)
+	review.Rating = float32(latestRating)
+	review.RatingCount = float32(ratingCount)
 	fmt.Println("OutputPtr :", string(r.outputPtr))
 	content, err := json.Marshal(review)
 	if err != nil {
@@ -91,13 +92,16 @@ func main() {
 	did := []byte(review.DID)
 	//the current average rating of the product
 	rating := make([]byte, 4)
-	binary.LittleEndian.PutUint32(rating, uint32(currentRating))
+	currentRatingBits := math.Float32bits(currentRating)
+	binary.LittleEndian.PutUint32(rating, currentRatingBits)
 	//the total count of the ratings received
 	count := make([]byte, 4)
-	binary.LittleEndian.PutUint32(count, uint32(ratingCount))
+	ratingCountBits := math.Float32bits(ratingCount)
+	binary.LittleEndian.PutUint32(count, ratingCountBits)
 	//the new rating given by the user
 	userRating := make([]byte, 4)
-	binary.LittleEndian.PutUint32(userRating, uint32(randomRating))
+	randomRatingBits := math.Float32bits(float32(randomRating))
+	binary.LittleEndian.PutUint32(userRating, randomRatingBits)
 
 	mergeCurrentRating := append(did, rating...)
 	fmt.Println(" merge current rating ", mergeCurrentRating)
@@ -109,6 +113,6 @@ func main() {
 	fmt.Println("merge new user rating", merge)
 
 	runtime := &WasmtimeRuntime{}
-	runtime.Init("rating_contract/target/wasm32-unknown-unknown/debug/rating_contract.wasm")
+	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(did)), int32(len(rating)), int32(len(count)), int32(len(userRating)))
 }
