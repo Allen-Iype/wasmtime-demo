@@ -1,6 +1,6 @@
 extern "C" {
     fn load_input(pointer: *mut u8);
-    fn dump_output(pointer: *const u8, user_rating: f32 , rating_count: f32, length: usize, output_ptr: *const u8,output_len: usize);
+    fn dump_output(pointer: *const u8, user_rating: f32 , rating_count: f32, length: usize);
 }
 
 //did,rating,count
@@ -19,20 +19,8 @@ pub extern "C" fn handler(did_length: usize , rating_length: usize , rating_coun
     let (did, b1_rest) = input.split_at(did_length);
     let (rating, count_rating) = b1_rest.split_at(rating_length);
     let (rating_count, user_rating) = count_rating.split_at(rating_count_length);
-
    
-    let did_string = String::from_utf8(did.to_vec()).unwrap();
-    //just a condition check introduced to check how to process string inside wasm
-   // let mut output = Vec::with_capacity(did.len());
-   let output;
-   if did_string == "QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ" {
-       output = did.to_ascii_uppercase();
-   } else {
-       output = did.to_vec();
-   }
-   
-   
-
+    
     let mut current_rating = f32::from_ne_bytes(rating[0..rating_length].try_into().unwrap());
     let mut total_count = f32::from_ne_bytes(rating_count[0..rating_count_length].try_into().unwrap());
     let latest_user_rating = f32::from_ne_bytes(user_rating[0..user_rating_length].try_into().unwrap());
@@ -42,7 +30,7 @@ pub extern "C" fn handler(did_length: usize , rating_length: usize , rating_coun
 
     // dump output data
     unsafe {
-        dump_output(did.as_ptr() , current_rating, total_count, did.len(),output.as_ptr(),output.len());
+        dump_output(did.as_ptr() , current_rating, total_count, did.len());
 
     }
 }

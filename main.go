@@ -17,9 +17,8 @@ type WasmtimeRuntime struct {
 	memory  *wasmtime.Memory
 	handler *wasmtime.Func
 
-	input     []byte
-	output    []byte
-	outputPtr []byte
+	input  []byte
+	output []byte
 }
 
 type ProductReview struct {
@@ -48,16 +47,13 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, length int32, outputPtr int32, outputLen int32) {
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, length int32) {
 	r.output = make([]byte, length)
-	r.outputPtr = make([]byte, outputLen)
 	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
-	copy(r.outputPtr, r.memory.UnsafeData(r.store)[pointer:outputPtr+outputLen])
 	review := ProductReview{}
 	review.DID = string(r.output)
 	review.Rating = float32(latestRating)
 	review.RatingCount = float32(ratingCount)
-	fmt.Println("OutputPtr :", string(r.outputPtr))
 	content, err := json.Marshal(review)
 	if err != nil {
 		fmt.Println(err)
