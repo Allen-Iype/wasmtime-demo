@@ -72,9 +72,10 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, rating
 	}
 }
 
-func (r *WasmtimeRuntime) RunHandler(data []byte, didLength int32, ratingLength int32, countLength int32, userRatingLength int32) []byte {
+// TO DO : Optimise the memory usage
+func (r *WasmtimeRuntime) RunHandler(data []byte, didLength int32, ratingLength int32, countLength int32, userRatingLength int32, sellerDidLength int32, sellerRatingLength int32, sellerProductCountLength int32) []byte {
 	r.input = data
-	r.handler.Call(r.store, didLength, ratingLength, countLength, userRatingLength)
+	r.handler.Call(r.store, didLength, ratingLength, countLength, userRatingLength, sellerDidLength, sellerRatingLength, sellerProductCountLength)
 	fmt.Println("Result:", r.output)
 	return r.output
 }
@@ -135,16 +136,31 @@ func main() {
 	//the new rating given by the user
 	userRatingBytes := ConvertFloat32ToBytes(float32(randomRating))
 
+	sellerDIDBytes := []byte(sellerDID)
+
+	sellerRatingBytes := ConvertFloat32ToBytes(sellerRating)
+
+	sellerProductCountBytes := ConvertFloat32ToBytes(productCount)
+
 	mergeCurrentRating := append(productIdBytes, ratingBytes...)
 	fmt.Println(" merge current rating ", mergeCurrentRating)
 
 	mergeCount := append(mergeCurrentRating, countBytes...)
 	fmt.Println("merge current count ", mergeCount)
 
-	merge := append(mergeCount, userRatingBytes...)
-	fmt.Println("merge new user rating", merge)
+	mergeUserRating := append(mergeCount, userRatingBytes...)
+	fmt.Println("merge new user rating", mergeUserRating)
+
+	mergeSeller := append(sellerDIDBytes, sellerRatingBytes...)
+	fmt.Println("merge seller rating", mergeSeller)
+
+	mergeSellerProduct := append(mergeSeller, sellerProductCountBytes...)
+	fmt.Println("merge seller product count", mergeSellerProduct)
+
+	merge := append(mergeUserRating, mergeSellerProduct...)
+	fmt.Println("merge all", merge)
 
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
-	runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)))
+	runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)), int32(len(sellerDIDBytes)), int32(len(sellerRatingBytes)), int32(len(sellerProductCountBytes)))
 }
