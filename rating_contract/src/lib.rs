@@ -35,7 +35,9 @@ pub extern "C" fn handler(did_length: usize , rating_length: usize , rating_coun
     current_seller_rating = (current_seller_rating + current_rating)/(total_seller_product_count);
     let did_len = did.len();
     let seller_did_len = seller_did.len();
-    let output:Vec<u8> = Vec::with_capacity(did_len+seller_did_len);
+    let mut output:Vec<u8> = Vec::with_capacity(did_len+seller_did_len);
+    output.extend_from_slice(did);
+    output.extend_from_slice(seller_did);
     // dump output data
     unsafe {
         dump_output(output.as_ptr() , current_rating, total_count, did.len(),seller_did.len(), current_seller_rating);
