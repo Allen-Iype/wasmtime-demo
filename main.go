@@ -21,10 +21,18 @@ type WasmtimeRuntime struct {
 	output []byte
 }
 
+type SellerReview struct {
+	DID          string
+	SellerRating float32
+	ProductCount float32 //This can be changed to the list of products the seller has and calcuate the length of the array to get the no of products
+}
+
+// Suggestion : Each product can be made into a data token and the product description can be given as the content of the token
 type ProductReview struct {
-	DID         string
+	ProductId   string
 	Rating      float32
 	RatingCount float32
+	SellerDID   string
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
@@ -51,7 +59,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, rating
 	r.output = make([]byte, length)
 	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
 	review := ProductReview{}
-	review.DID = string(r.output)
+	review.ProductId = string(r.output)
 	review.Rating = float32(latestRating)
 	review.RatingCount = float32(ratingCount)
 	content, err := json.Marshal(review)
@@ -71,44 +79,72 @@ func (r *WasmtimeRuntime) RunHandler(data []byte, didLength int32, ratingLength 
 	return r.output
 }
 
-func main() {
-
+func ReadProductReview(filePath string) ProductReview {
+	productStateUpdate, _ := os.ReadFile(filePath)
 	var review ProductReview
-	stateUpdate, _ := os.ReadFile("store_state/rating_contract/rating.json")
-	json.Unmarshal(stateUpdate, &review)
-	currentRating := review.Rating
-	ratingCount := review.RatingCount
+	json.Unmarshal(productStateUpdate, &review)
+	fmt.Println("ProductId : ", review.ProductId)
+	fmt.Println("Current Rating : ", review.Rating)
+	fmt.Println("Current Rating Count : ", review.RatingCount)
+	return review
+}
 
-	fmt.Println("DID : ", review.DID)
+func ReadSellerReview(filePath string) SellerReview {
+	sellerStateUpdate, _ := os.ReadFile(filePath)
+	var sellerReview SellerReview
+	json.Unmarshal(sellerStateUpdate, &sellerReview)
+	fmt.Println("SellerId: ", sellerReview.DID)
+	fmt.Println("Seller Rating : ", sellerReview.SellerRating)
+	fmt.Println("Product Count : ", sellerReview.ProductCount)
+	return sellerReview
+}
+
+func ConvertFloat32ToBytes(floatValue float32) []byte {
+	bits := math.Float32bits(floatValue)
+	bytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytes, bits)
+	return bytes
+}
+
+func main() {
+	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
+	currentRating := productStateUpdate.Rating
+	ratingCount := productStateUpdate.RatingCount
+	productId := productStateUpdate.ProductId
+
+	fmt.Println("ProductId : ", productId)
 	fmt.Println("Current Rating : ", currentRating)
 	fmt.Println("Current Rating Count : ", ratingCount)
 
 	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
+	//whenever a new seller or product is registered
 
-	did := []byte(review.DID)
+	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
+	sellerRating := sellerStateUpdate.SellerRating
+	productCount := sellerStateUpdate.ProductCount
+	sellerDID := sellerStateUpdate.DID
+	fmt.Println("SellerId: ", sellerDID)
+	fmt.Println("Seller Rating : ", sellerRating)
+	fmt.Println("Product Count : ", productCount)
+
+	productIdBytes := []byte(productId)
 	//the current average rating of the product
-	rating := make([]byte, 4)
-	currentRatingBits := math.Float32bits(currentRating)
-	binary.LittleEndian.PutUint32(rating, currentRatingBits)
+	ratingBytes := ConvertFloat32ToBytes(currentRating)
 	//the total count of the ratings received
-	count := make([]byte, 4)
-	ratingCountBits := math.Float32bits(ratingCount)
-	binary.LittleEndian.PutUint32(count, ratingCountBits)
+	countBytes := ConvertFloat32ToBytes(ratingCount)
 	//the new rating given by the user
-	userRating := make([]byte, 4)
-	randomRatingBits := math.Float32bits(float32(randomRating))
-	binary.LittleEndian.PutUint32(userRating, randomRatingBits)
+	userRatingBytes := ConvertFloat32ToBytes(float32(randomRating))
 
-	mergeCurrentRating := append(did, rating...)
+	mergeCurrentRating := append(productIdBytes, ratingBytes...)
 	fmt.Println(" merge current rating ", mergeCurrentRating)
 
-	mergeCount := append(mergeCurrentRating, count...)
+	mergeCount := append(mergeCurrentRating, countBytes...)
 	fmt.Println("merge current count ", mergeCount)
 
-	merge := append(mergeCount, userRating...)
+	merge := append(mergeCount, userRatingBytes...)
 	fmt.Println("merge new user rating", merge)
 
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
-	runtime.RunHandler(merge, int32(len(did)), int32(len(rating)), int32(len(count)), int32(len(userRating)))
+	runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)))
 }
