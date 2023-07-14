@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -55,21 +54,22 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, length int32) {
-	r.output = make([]byte, length)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, productIdLength int32, sellerDidLength int32, currentSellerRating int32) {
+	r.output = make([]byte, productIdLength+sellerDidLength)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productIdLength+sellerDidLength])
 	review := ProductReview{}
+	fmt.Println(r.output)
 	review.ProductId = string(r.output)
 	review.Rating = float32(latestRating)
 	review.RatingCount = float32(ratingCount)
-	content, err := json.Marshal(review)
-	if err != nil {
-		fmt.Println(err)
-	}
-	err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// content, err := json.Marshal(review)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 }
 
 // TO DO : Optimise the memory usage
@@ -161,6 +161,6 @@ func main() {
 	fmt.Println("merge all", merge)
 
 	runtime := &WasmtimeRuntime{}
-	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
+	runtime.Init("rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)), int32(len(sellerDIDBytes)), int32(len(sellerRatingBytes)), int32(len(sellerProductCountBytes)))
 }
