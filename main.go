@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
 	"os"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -17,8 +16,9 @@ type WasmtimeRuntime struct {
 	memory  *wasmtime.Memory
 	handler *wasmtime.Func
 
-	input  []byte
-	output []byte
+	input     []byte
+	productId []byte
+	sellerDID []byte
 }
 
 type SellerReview struct {
@@ -55,12 +55,24 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, productIdLength int32, sellerDidLength int32, currentSellerRating float32) {
-	r.output = make([]byte, productIdLength+sellerDidLength)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productIdLength])
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, productIdLength int32, sellerDidLength int32, currentSellerRating float32, sellerDidPointer int32) {
+	fmt.Println("latestRating :", latestRating)
+	fmt.Println("ratingCount :", ratingCount)
+	fmt.Println("productIdLength :", productIdLength)
+	fmt.Println("sellerDidLength :", sellerDidLength)
+	fmt.Println("currentSellerRating :", currentSellerRating)
+	fmt.Println("sellerDidPointer :", sellerDidPointer)
+
+	r.productId = make([]byte, productIdLength)
+	r.sellerDID = make([]byte, sellerDidLength)
+	fmt.Println(sellerDidLength)
+	fmt.Println(productIdLength)
+	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productIdLength])
+	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
 	review := ProductReview{}
-	fmt.Println(r.output)
-	review.ProductId = string(r.output)
+	fmt.Println("Product id :", r.productId)
+	fmt.Println("Lenght of r.productId", len(r.productId))
+	review.ProductId = string(r.productId)
 	review.Rating = float32(latestRating)
 	review.RatingCount = float32(ratingCount)
 	content, err := json.Marshal(review)
@@ -71,14 +83,32 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, rating
 	if err != nil {
 		log.Fatal(err)
 	}
+	sellerReview := SellerReview{}
+	fmt.Println("Product Id pointer :", pointer)
+	fmt.Println("Seller Did pointer :", sellerDidPointer)
+	fmt.Println("Seller Did :", r.sellerDID)
+	fmt.Println("Length of r.sellerdid", len(r.sellerDID))
+	fmt.Println("Seller did string: ", string(r.sellerDID))
+	fmt.Println("Product Id string: ", string(r.productId))
+	sellerReview.DID = string(r.sellerDID)
+	sellerReview.SellerRating = float32(currentSellerRating)
+	sellerReview.ProductCount = float32(1)
+	sellerContent, err := json.Marshal(sellerReview)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = os.WriteFile("store_state/rating_contract/seller_rating.json", sellerContent, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // TO DO : Optimise the memory usage
 func (r *WasmtimeRuntime) RunHandler(data []byte, didLength int32, ratingLength int32, countLength int32, userRatingLength int32, sellerDidLength int32, sellerRatingLength int32, sellerProductCountLength int32) []byte {
 	r.input = data
 	r.handler.Call(r.store, didLength, ratingLength, countLength, userRatingLength, sellerDidLength, sellerRatingLength, sellerProductCountLength)
-	fmt.Println("Result:", r.output)
-	return r.output
+	fmt.Println("Result:", r.productId)
+	return r.productId
 }
 
 func ReadProductReview(filePath string) ProductReview {
@@ -119,9 +149,9 @@ func main() {
 	fmt.Println("Current Rating : ", currentRating)
 	fmt.Println("Current Rating Count : ", ratingCount)
 
-	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
+	//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
 	//whenever a new seller or product is registered
-
+	randomRating := 5
 	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
 	sellerRating := sellerStateUpdate.SellerRating
 	productCount := sellerStateUpdate.ProductCount
@@ -131,6 +161,8 @@ func main() {
 	fmt.Println("Product Count : ", productCount)
 
 	productIdBytes := []byte(productId)
+	fmt.Println("ProductIdBytes :", productIdBytes)
+	fmt.Println("Length of ProductIdBytes :", len(productIdBytes))
 	//the current average rating of the product
 	ratingBytes := ConvertFloat32ToBytes(currentRating)
 	//the total count of the ratings received
@@ -139,7 +171,8 @@ func main() {
 	userRatingBytes := ConvertFloat32ToBytes(float32(randomRating))
 
 	sellerDIDBytes := []byte(sellerDID)
-
+	fmt.Println("SellerDID bytes :", sellerDIDBytes)
+	fmt.Println("Length of SellerDID bytes :", len(sellerDIDBytes))
 	sellerRatingBytes := ConvertFloat32ToBytes(sellerRating)
 
 	sellerProductCountBytes := ConvertFloat32ToBytes(productCount)
