@@ -55,6 +55,9 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
+/* Here when 2 strings are passed productId :"AB" and sellerDID : "DFG" the ouput obtained r,productId is "AB" and r.sellerdid is "ABD",
+so the inference is when value is copied from r.store, irrespective of the pointer it is copying from the start of the memory till the length specified */
+
 func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, productIdLength int32, sellerDidLength int32, currentSellerRating float32, sellerDidPointer int32) {
 	fmt.Println("latestRating :", latestRating)
 	fmt.Println("ratingCount :", ratingCount)
@@ -140,22 +143,32 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 }
 
 func main() {
-	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
-	currentRating := productStateUpdate.Rating
-	ratingCount := productStateUpdate.RatingCount
-	productId := productStateUpdate.ProductId
+	// productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
+	// currentRating := productStateUpdate.Rating
+	// ratingCount := productStateUpdate.RatingCount
+	// productId := productStateUpdate.ProductId
+
+	productId := "AB"
+	currentRating := float32(5)
+	ratingCount := float32(1)
+	productSeller := "DFG"
 
 	fmt.Println("ProductId : ", productId)
 	fmt.Println("Current Rating : ", currentRating)
 	fmt.Println("Current Rating Count : ", ratingCount)
-
+	fmt.Println("Product Seller : ", productSeller)
 	//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
 	//whenever a new seller or product is registered
 	randomRating := 5
-	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
-	sellerRating := sellerStateUpdate.SellerRating
-	productCount := sellerStateUpdate.ProductCount
-	sellerDID := sellerStateUpdate.DID
+
+	sellerDID := "DFG"
+	sellerRating := float32(5)
+	productCount := float32(1)
+	// sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
+	// sellerRating := sellerStateUpdate.SellerRating
+	// productCount := sellerStateUpdate.ProductCount
+	// sellerDID := sellerStateUpdate.DID
+	fmt.Println("Random Rating :", randomRating)
 	fmt.Println("SellerId: ", sellerDID)
 	fmt.Println("Seller Rating : ", sellerRating)
 	fmt.Println("Product Count : ", productCount)
@@ -163,10 +176,13 @@ func main() {
 	productIdBytes := []byte(productId)
 	fmt.Println("ProductIdBytes :", productIdBytes)
 	fmt.Println("Length of ProductIdBytes :", len(productIdBytes))
+
 	//the current average rating of the product
 	ratingBytes := ConvertFloat32ToBytes(currentRating)
+
 	//the total count of the ratings received
 	countBytes := ConvertFloat32ToBytes(ratingCount)
+
 	//the new rating given by the user
 	userRatingBytes := ConvertFloat32ToBytes(float32(randomRating))
 
@@ -177,25 +193,47 @@ func main() {
 
 	sellerProductCountBytes := ConvertFloat32ToBytes(productCount)
 
-	mergeCurrentRating := append(productIdBytes, ratingBytes...)
-	fmt.Println(" merge current rating ", mergeCurrentRating)
+	productIdSellerDid := append(productIdBytes, sellerDIDBytes...)
+	fmt.Println("Product Id and Seller Did :", productIdSellerDid)
 
-	mergeCount := append(mergeCurrentRating, countBytes...)
-	fmt.Println("merge current count ", mergeCount)
+	mergeSellerRating := append(productIdSellerDid, sellerRatingBytes...)
+	fmt.Println("Product Id, Seller Did and Seller Rating :", mergeSellerRating)
 
-	mergeUserRating := append(mergeCount, userRatingBytes...)
-	fmt.Println("merge new user rating", mergeUserRating)
+	mergeSellerProductCount := append(mergeSellerRating, sellerProductCountBytes...)
+	fmt.Println("Product Id, Seller Did, Seller Rating and Seller Product Count :", mergeSellerProductCount)
 
-	mergeSeller := append(sellerDIDBytes, sellerRatingBytes...)
-	fmt.Println("merge seller rating", mergeSeller)
+	mergeUserRating := append(mergeSellerProductCount, userRatingBytes...)
+	fmt.Println("Product Id, Seller Did, Seller Rating, Seller Product Count and User Rating :", mergeUserRating)
 
-	mergeSellerProduct := append(mergeSeller, sellerProductCountBytes...)
-	fmt.Println("merge seller product count", mergeSellerProduct)
+	mergeCount := append(mergeUserRating, countBytes...)
+	fmt.Println("Product Id, Seller Did, Seller Rating, Seller Product Count, User Rating and Count :", mergeCount)
 
-	merge := append(mergeUserRating, mergeSellerProduct...)
-	fmt.Println("merge all", merge)
+	merge := append(mergeCount, ratingBytes...)
+	fmt.Println("Product Id, Seller Did, Seller Rating, Seller Product Count, User Rating, Count and Rating :", merge)
 
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)), int32(len(sellerDIDBytes)), int32(len(sellerRatingBytes)), int32(len(sellerProductCountBytes)))
+
+	// mergeCurrentRating := append(productIdBytes, ratingBytes...)
+	// fmt.Println(" merge current rating ", mergeCurrentRating)
+
+	// mergeCount := append(mergeCurrentRating, countBytes...)
+	// fmt.Println("merge current count ", mergeCount)
+
+	// mergeUserRating := append(mergeCount, userRatingBytes...)
+	// fmt.Println("merge new user rating", mergeUserRating)
+
+	// mergeSeller := append(sellerDIDBytes, sellerRatingBytes...)
+	// fmt.Println("merge seller rating", mergeSeller)
+
+	// mergeSellerProduct := append(mergeSeller, sellerProductCountBytes...)
+	// fmt.Println("merge seller product count", mergeSellerProduct)
+
+	// merge := append(mergeUserRating, mergeSellerProduct...)
+	// fmt.Println("merge all", merge)
+
+	// runtime := &WasmtimeRuntime{}
+	// runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
+	// runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)), int32(len(sellerDIDBytes)), int32(len(sellerRatingBytes)), int32(len(sellerProductCountBytes)))
 }

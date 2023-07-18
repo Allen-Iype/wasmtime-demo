@@ -18,13 +18,14 @@ pub extern "C" fn handler(did_length: usize , rating_length: usize , rating_coun
 
 
     let (product_id, b1_rest) = input.split_at(did_length);
-    let (rating, count_rating) = b1_rest.split_at(rating_length);
-    let (rating_count, user_rating) = count_rating.split_at(rating_count_length);
-    let (seller_did, b2_rest) = user_rating.split_at(seller_did_length);
-  //  let (seller_rating, seller_product_count) = b2_rest.split_at(seller_rating_length);
+    let (seller_did, b2_rest) = b1_rest.split_at(seller_did_length);
+    let (seller_rating, b3_rest) = b2_rest.split_at(seller_rating_length);
+    let (seller_product_count,b4_rest) = b3_rest.split_at(seller_product_count_length);
+    let (user_rating, b5_rest) = b4_rest.split_at(user_rating_length);
+    let (rating_count, latest_rating) = b5_rest.split_at(rating_count_length);
    
     
-    let mut current_rating = f32::from_ne_bytes(rating[0..rating_length].try_into().unwrap());
+    let mut current_rating = f32::from_ne_bytes(latest_rating[0..rating_length].try_into().unwrap());
     let mut total_count = f32::from_ne_bytes(rating_count[0..rating_count_length].try_into().unwrap());
     let latest_user_rating = f32::from_ne_bytes(user_rating[0..user_rating_length].try_into().unwrap());
   //  let mut current_seller_rating:f32 = f32::from_ne_bytes(seller_rating[0..seller_rating_length].try_into().unwrap());
