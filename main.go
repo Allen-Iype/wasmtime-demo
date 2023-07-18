@@ -66,12 +66,12 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, rating
 	fmt.Println("currentSellerRating :", currentSellerRating)
 	fmt.Println("sellerDidPointer :", sellerDidPointer)
 
-	r.productId = make([]byte, productIdLength)
-	r.sellerDID = make([]byte, sellerDidLength)
+	r.productId = make([]byte, productIdLength+sellerDidLength)
+	//r.sellerDID = make([]byte, sellerDidLength)
 	fmt.Println(sellerDidLength)
 	fmt.Println(productIdLength)
-	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productIdLength])
-	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
+	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productIdLength+sellerDidLength])
+	//	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
 	review := ProductReview{}
 	fmt.Println("Product id :", r.productId)
 	fmt.Println("Lenght of r.productId", len(r.productId))
