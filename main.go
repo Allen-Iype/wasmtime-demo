@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/bytecodealliance/wasmtime-go"
+	"github.com/fxamacker/cbor/v2"
 )
 
 type WasmtimeRuntime struct {
@@ -143,15 +144,21 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 }
 
 func main() {
-	// productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
-	// currentRating := productStateUpdate.Rating
-	// ratingCount := productStateUpdate.RatingCount
-	// productId := productStateUpdate.ProductId
+	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
+	currentRating := productStateUpdate.Rating
+	ratingCount := productStateUpdate.RatingCount
+	productId := productStateUpdate.ProductId
 
-	productId := "AB"
-	currentRating := float32(5)
-	ratingCount := float32(1)
-	productSeller := "DFG"
+	// productId := "AB"
+	// currentRating := float32(5)
+	// ratingCount := float32(1)
+	productSeller := productStateUpdate.SellerDID
+	encodedProductState, err := cbor.Marshal(productStateUpdate)
+	if err != nil {
+		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
+	}
+
+	fmt.Println("CBOR encoded data :", encodedProductState)
 
 	fmt.Println("ProductId : ", productId)
 	fmt.Println("Current Rating : ", currentRating)
@@ -161,17 +168,24 @@ func main() {
 	//whenever a new seller or product is registered
 	randomRating := 5
 
-	sellerDID := "DFG"
-	sellerRating := float32(5)
-	productCount := float32(1)
-	// sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
-	// sellerRating := sellerStateUpdate.SellerRating
-	// productCount := sellerStateUpdate.ProductCount
-	// sellerDID := sellerStateUpdate.DID
+	// sellerDID := "DFG"
+	// sellerRating := float32(5)
+	// productCount := float32(1)
+	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
+	sellerRating := sellerStateUpdate.SellerRating
+	productCount := sellerStateUpdate.ProductCount
+	sellerDID := sellerStateUpdate.DID
 	fmt.Println("Random Rating :", randomRating)
 	fmt.Println("SellerId: ", sellerDID)
 	fmt.Println("Seller Rating : ", sellerRating)
 	fmt.Println("Product Count : ", productCount)
+
+	encodedSellerState, err := cbor.Marshal(sellerStateUpdate)
+	if err != nil {
+		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
+	}
+
+	fmt.Println("CBOR encoded data :", encodedSellerState)
 
 	productIdBytes := []byte(productId)
 	fmt.Println("ProductIdBytes :", productIdBytes)
