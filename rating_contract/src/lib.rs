@@ -3,16 +3,23 @@ use serde_cbor;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct  ProductReview {
+    #[serde(rename = "product_id")]
 	ProductId:   String,
+    #[serde(rename = "rating")]
 	Rating:      f32,
+    #[serde(rename = "rating_count")]
 	RatingCount: f32,
+    #[serde(rename = "seller_did")]
 	SellerDID:   String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SellerReview {
+    #[serde(rename = "did")]
 	DID:          String,
+    #[serde(rename = "seller_rating")]
 	SellerRating: f32,
+    #[serde(rename = "product_count")]
 	ProductCount: f32,
 }
 
@@ -51,19 +58,19 @@ pub extern "C" fn handler(product_state_length: usize , seller_state_length: usi
     // let new_rating = (current_rating * rating_count + rating) / new_count;
     // println!("new Rating is {}", new_rating );
 
-    let product_review_test = ProductReview{ ProductId: "Dummy".to_owned(), Rating: 1.0, RatingCount: 1.0, SellerDID: "DID".to_owned() };
-    let seller_review_test = SellerReview{ DID: "DID".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
-    let cbor_product_review:Vec<u8> = serde_cbor::to_vec(&product_review).expect("Failed to serialize to CBOR");
-    let cbor_seller_review:Vec<u8> = serde_cbor::to_vec(&seller_review).expect("Failed to serialize to CBOR");
-    let latest_product_len = cbor_product_review.len();
-    let latest_seller_len = cbor_seller_review.len();
-  //  current_seller_rating = ()/(total_seller_product_count);
-    // append two vectors
-    let combined_vec = [cbor_product_review, cbor_seller_review].concat();
+//     let product_review_test = ProductReview{ ProductId: "Dummy".to_owned(), Rating: 1.0, RatingCount: 1.0, SellerDID: "DID".to_owned() };
+//     let seller_review_test = SellerReview{ DID: "DID".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
+//     let cbor_product_review:Vec<u8> = serde_cbor::to_vec(&product_review).expect("Failed to serialize to CBOR");
+//     let cbor_seller_review:Vec<u8> = serde_cbor::to_vec(&seller_review).expect("Failed to serialize to CBOR");
+//     let latest_product_len = cbor_product_review.len();
+//     let latest_seller_len = cbor_seller_review.len();
+//   //  current_seller_rating = ()/(total_seller_product_count);
+//     // append two vectors
+//     let combined_vec = [cbor_product_review, cbor_seller_review].concat();
 
     // dump output data
     unsafe {
-        dump_output(combined_vec.as_ptr() , latest_product_len,latest_seller_len);
+        dump_output(input.as_ptr() , product_state_length,seller_state_length);
 
     }
 }
