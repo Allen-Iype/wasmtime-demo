@@ -108,9 +108,9 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, rating
 }
 
 // TO DO : Optimise the memory usage
-func (r *WasmtimeRuntime) RunHandler(data []byte, didLength int32, ratingLength int32, countLength int32, userRatingLength int32, sellerDidLength int32, sellerRatingLength int32, sellerProductCountLength int32) []byte {
+func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sellerStateLength int32, rating float32) []byte {
 	r.input = data
-	r.handler.Call(r.store, didLength, ratingLength, countLength, userRatingLength, sellerDidLength, sellerRatingLength, sellerProductCountLength)
+	r.handler.Call(r.store, productStateLength, sellerStateLength)
 	fmt.Println("Result:", r.productId)
 	return r.productId
 }
@@ -145,40 +145,29 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 
 func main() {
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
-	currentRating := productStateUpdate.Rating
-	ratingCount := productStateUpdate.RatingCount
-	productId := productStateUpdate.ProductId
-
-	// productId := "AB"
-	// currentRating := float32(5)
-	// ratingCount := float32(1)
-	productSeller := productStateUpdate.SellerDID
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
 	if err != nil {
 		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
 	}
 
 	fmt.Println("CBOR encoded data :", encodedProductState)
-
-	fmt.Println("ProductId : ", productId)
-	fmt.Println("Current Rating : ", currentRating)
-	fmt.Println("Current Rating Count : ", ratingCount)
-	fmt.Println("Product Seller : ", productSeller)
+	fmt.Println("ProductId : ", productStateUpdate.Rating)
+	fmt.Println("Current Rating : ", productStateUpdate.Rating)
+	fmt.Println("Current Rating Count : ", productStateUpdate.RatingCount)
+	fmt.Println("Product Seller : ", productStateUpdate.SellerDID)
 	//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
 	//whenever a new seller or product is registered
-	randomRating := 5
+	randomRating := 5.00
 
 	// sellerDID := "DFG"
 	// sellerRating := float32(5)
 	// productCount := float32(1)
 	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
-	sellerRating := sellerStateUpdate.SellerRating
-	productCount := sellerStateUpdate.ProductCount
-	sellerDID := sellerStateUpdate.DID
+
 	fmt.Println("Random Rating :", randomRating)
-	fmt.Println("SellerId: ", sellerDID)
-	fmt.Println("Seller Rating : ", sellerRating)
-	fmt.Println("Product Count : ", productCount)
+	fmt.Println("SellerId: ", sellerStateUpdate.DID)
+	fmt.Println("Seller Rating : ", sellerStateUpdate.SellerRating)
+	fmt.Println("Product Count : ", sellerStateUpdate.ProductCount)
 
 	encodedSellerState, err := cbor.Marshal(sellerStateUpdate)
 	if err != nil {
@@ -187,67 +176,9 @@ func main() {
 
 	fmt.Println("CBOR encoded data :", encodedSellerState)
 
-	productIdBytes := []byte(productId)
-	fmt.Println("ProductIdBytes :", productIdBytes)
-	fmt.Println("Length of ProductIdBytes :", len(productIdBytes))
-
-	//the current average rating of the product
-	ratingBytes := ConvertFloat32ToBytes(currentRating)
-
-	//the total count of the ratings received
-	countBytes := ConvertFloat32ToBytes(ratingCount)
-
-	//the new rating given by the user
-	userRatingBytes := ConvertFloat32ToBytes(float32(randomRating))
-
-	sellerDIDBytes := []byte(sellerDID)
-	fmt.Println("SellerDID bytes :", sellerDIDBytes)
-	fmt.Println("Length of SellerDID bytes :", len(sellerDIDBytes))
-	sellerRatingBytes := ConvertFloat32ToBytes(sellerRating)
-
-	sellerProductCountBytes := ConvertFloat32ToBytes(productCount)
-
-	productIdSellerDid := append(productIdBytes, sellerDIDBytes...)
-	fmt.Println("Product Id and Seller Did :", productIdSellerDid)
-
-	mergeSellerRating := append(productIdSellerDid, sellerRatingBytes...)
-	fmt.Println("Product Id, Seller Did and Seller Rating :", mergeSellerRating)
-
-	mergeSellerProductCount := append(mergeSellerRating, sellerProductCountBytes...)
-	fmt.Println("Product Id, Seller Did, Seller Rating and Seller Product Count :", mergeSellerProductCount)
-
-	mergeUserRating := append(mergeSellerProductCount, userRatingBytes...)
-	fmt.Println("Product Id, Seller Did, Seller Rating, Seller Product Count and User Rating :", mergeUserRating)
-
-	mergeCount := append(mergeUserRating, countBytes...)
-	fmt.Println("Product Id, Seller Did, Seller Rating, Seller Product Count, User Rating and Count :", mergeCount)
-
-	merge := append(mergeCount, ratingBytes...)
-	fmt.Println("Product Id, Seller Did, Seller Rating, Seller Product Count, User Rating, Count and Rating :", merge)
-
+	merge := append(encodedProductState, encodedSellerState...)
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
-	runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)), int32(len(sellerDIDBytes)), int32(len(sellerRatingBytes)), int32(len(sellerProductCountBytes)))
+	runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(randomRating))
 
-	// mergeCurrentRating := append(productIdBytes, ratingBytes...)
-	// fmt.Println(" merge current rating ", mergeCurrentRating)
-
-	// mergeCount := append(mergeCurrentRating, countBytes...)
-	// fmt.Println("merge current count ", mergeCount)
-
-	// mergeUserRating := append(mergeCount, userRatingBytes...)
-	// fmt.Println("merge new user rating", mergeUserRating)
-
-	// mergeSeller := append(sellerDIDBytes, sellerRatingBytes...)
-	// fmt.Println("merge seller rating", mergeSeller)
-
-	// mergeSellerProduct := append(mergeSeller, sellerProductCountBytes...)
-	// fmt.Println("merge seller product count", mergeSellerProduct)
-
-	// merge := append(mergeUserRating, mergeSellerProduct...)
-	// fmt.Println("merge all", merge)
-
-	// runtime := &WasmtimeRuntime{}
-	// runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
-	// runtime.RunHandler(merge, int32(len(productIdBytes)), int32(len(ratingBytes)), int32(len(countBytes)), int32(len(userRatingBytes)), int32(len(sellerDIDBytes)), int32(len(sellerRatingBytes)), int32(len(sellerProductCountBytes)))
 }

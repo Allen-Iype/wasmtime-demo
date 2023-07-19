@@ -1,3 +1,19 @@
+use serde::Deserialize;
+
+struct  ProductReview {
+	ProductId:   String,
+	Rating:      f32,
+	RatingCount: f32,
+	SellerDID:   String,
+}
+
+struct SellerReview {
+	DID:          String,
+	SellerRating: f32,
+	ProductCount: f32,
+}
+
+
 extern "C" {
     fn load_input(pointer: *mut u8);
     fn dump_output(pointer: *const u8, user_rating: f32 , rating_count: f32, product_id_length: usize,seller_did_length: usize, current_seller_rating: f32, seller_did_pointer: *const u8);
@@ -7,31 +23,18 @@ extern "C" {
 //did,rating,count
 
 #[no_mangle]
-pub extern "C" fn handler(did_length: usize , rating_length: usize , rating_count_length: usize, user_rating_length: usize, seller_did_length: usize, seller_rating_length: usize, seller_product_count_length: usize) {
+pub extern "C" fn handler(product_state_length: usize , seller_state_length: usize , rating: f32) {
     // load input data
-    let mut input = Vec::with_capacity(did_length + rating_length + rating_count_length + user_rating_length + seller_did_length + seller_rating_length + seller_product_count_length);
+    let mut input = Vec::with_capacity(product_state_length+seller_state_length);
     
     unsafe {
         load_input(input.as_mut_ptr());
-        input.set_len(did_length + rating_length + rating_count_length + user_rating_length + seller_did_length + seller_rating_length + seller_product_count_length);
+        input.set_len(product_state_length+seller_state_length);
     }
 
 
-    let (product_id, b1_rest) = input.split_at(did_length);
-    let (seller_did, b2_rest) = b1_rest.split_at(seller_did_length);
-    let (seller_rating, b3_rest) = b2_rest.split_at(seller_rating_length);
-    let (seller_product_count,b4_rest) = b3_rest.split_at(seller_product_count_length);
-    let (user_rating, b5_rest) = b4_rest.split_at(user_rating_length);
-    let (rating_count, latest_rating) = b5_rest.split_at(rating_count_length);
-   
-    
-    let mut current_rating = f32::from_ne_bytes(latest_rating[0..rating_length].try_into().unwrap());
-    let mut total_count = f32::from_ne_bytes(rating_count[0..rating_count_length].try_into().unwrap());
-    let latest_user_rating = f32::from_ne_bytes(user_rating[0..user_rating_length].try_into().unwrap());
-  //  let mut current_seller_rating:f32 = f32::from_ne_bytes(seller_rating[0..seller_rating_length].try_into().unwrap());
-  //  let total_seller_product_count = f32::from_ne_bytes(seller_product_count[0..seller_product_count_length].try_into().unwrap());
-    total_count += 1.00;
-    current_rating = (current_rating + latest_user_rating)/(total_count);
+    let (product_state, seller_state) = input.split_at(product_state_length);
+   //cbor decode byte array 
 
   //  current_seller_rating = ()/(total_seller_product_count);
     let mut seller_did_vec:Vec<u8> = Vec::with_capacity(seller_did.len());
