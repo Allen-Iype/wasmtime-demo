@@ -1,0 +1,11 @@
+C:\Users\allen\wasmtime-demo\rating_contract\target\debug\deps\serde_bytes-e0fddd02f1f806be.rmeta: C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\lib.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytes.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\de.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\ser.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytebuf.rs
+
+C:\Users\allen\wasmtime-demo\rating_contract\target\debug\deps\libserde_bytes-e0fddd02f1f806be.rlib: C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\lib.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytes.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\de.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\ser.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytebuf.rs
+
+C:\Users\allen\wasmtime-demo\rating_contract\target\debug\deps\serde_bytes-e0fddd02f1f806be.d: C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\lib.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytes.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\de.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\ser.rs C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytebuf.rs
+
+C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\lib.rs:
+C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytes.rs:
+C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\de.rs:
+C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\ser.rs:
+C:\Users\allen\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde_bytes-0.11.12\src\bytebuf.rs:

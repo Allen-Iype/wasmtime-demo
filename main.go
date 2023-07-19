@@ -169,6 +169,9 @@ func main() {
 	fmt.Println("CBOR encoded data :", encodedSellerState)
 
 	merge := append(encodedProductState, encodedSellerState...)
+	fmt.Println("Encoded product length", len(encodedProductState))
+	fmt.Println("Encoded seller length", len(encodedSellerState))
+	fmt.Println(merge)
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(randomRating))
