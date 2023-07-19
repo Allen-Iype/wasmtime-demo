@@ -59,26 +59,27 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 /* Here when 2 strings are passed productId :"AB" and sellerDID : "DFG" the ouput obtained r,productId is "AB" and r.sellerdid is "ABD",
 so the inference is when value is copied from r.store, irrespective of the pointer it is copying from the start of the memory till the length specified */
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, ratingCount float32, productIdLength int32, sellerDidLength int32, currentSellerRating float32, sellerDidPointer int32) {
-	fmt.Println("latestRating :", latestRating)
-	fmt.Println("ratingCount :", ratingCount)
-	fmt.Println("productIdLength :", productIdLength)
-	fmt.Println("sellerDidLength :", sellerDidLength)
-	fmt.Println("currentSellerRating :", currentSellerRating)
-	fmt.Println("sellerDidPointer :", sellerDidPointer)
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
+	fmt.Println("pointer :", pointer)
+	fmt.Println("productReviewLength :", productReviewLength)
+	fmt.Println("sellerReviewLength :", sellerReviewLength)
 
-	r.productId = make([]byte, productIdLength+sellerDidLength)
+	r.productId = make([]byte, productReviewLength+sellerReviewLength)
 	//r.sellerDID = make([]byte, sellerDidLength)
-	fmt.Println(sellerDidLength)
-	fmt.Println(productIdLength)
-	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productIdLength+sellerDidLength])
+	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
 	//	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
+	//split byte array according to length
 	review := ProductReview{}
-	fmt.Println("Product id :", r.productId)
-	fmt.Println("Lenght of r.productId", len(r.productId))
-	review.ProductId = string(r.productId)
-	review.Rating = float32(latestRating)
-	review.RatingCount = float32(ratingCount)
+	sellerReview := SellerReview{}
+	cborData := r.productId[:productReviewLength]
+	cborDataSeller := r.productId[productReviewLength:]
+	latestProductReview := cbor.Unmarshal(cborData, review)
+	latestSellerReview := cbor.Unmarshal(cborDataSeller, sellerReview)
+	fmt.Println("Latest Product Review", latestProductReview)
+	fmt.Println("Latest Seller Review", latestSellerReview)
+
+	fmt.Println("Combined Byte Array :", r.productId)
+	fmt.Println("Lenght of Byte Array", len(r.productId))
 	content, err := json.Marshal(review)
 	if err != nil {
 		fmt.Println(err)
@@ -87,16 +88,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, latestRating float32, rating
 	if err != nil {
 		log.Fatal(err)
 	}
-	sellerReview := SellerReview{}
-	fmt.Println("Product Id pointer :", pointer)
-	fmt.Println("Seller Did pointer :", sellerDidPointer)
-	fmt.Println("Seller Did :", r.sellerDID)
-	fmt.Println("Length of r.sellerdid", len(r.sellerDID))
-	fmt.Println("Seller did string: ", string(r.sellerDID))
-	fmt.Println("Product Id string: ", string(r.productId))
-	sellerReview.DID = string(r.sellerDID)
-	sellerReview.SellerRating = float32(currentSellerRating)
-	sellerReview.ProductCount = float32(1)
+
 	sellerContent, err := json.Marshal(sellerReview)
 	if err != nil {
 		fmt.Println(err)

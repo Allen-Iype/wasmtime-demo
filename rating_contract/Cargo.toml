@@ -10,5 +10,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_bytes = "1"
+serde_bytes = "0.11.12"
 serde_cbor = "0.11"

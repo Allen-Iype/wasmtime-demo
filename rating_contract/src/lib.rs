@@ -1,5 +1,7 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
+use serde_cbor;
 
+#[derive(Debug, Serialize, Deserialize)]
 struct  ProductReview {
 	ProductId:   String,
 	Rating:      f32,
@@ -7,6 +9,7 @@ struct  ProductReview {
 	SellerDID:   String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 struct SellerReview {
 	DID:          String,
 	SellerRating: f32,
@@ -16,8 +19,7 @@ struct SellerReview {
 
 extern "C" {
     fn load_input(pointer: *mut u8);
-    fn dump_output(pointer: *const u8, user_rating: f32 , rating_count: f32, product_id_length: usize,seller_did_length: usize, current_seller_rating: f32, seller_did_pointer: *const u8);
-    fn get_account_info(did: *const u8, port: u32);
+    fn dump_output(pointer: *const u8, product_review_len: usize , seller_review_len: usize);
 }
 
 //did,rating,count
@@ -34,15 +36,34 @@ pub extern "C" fn handler(product_state_length: usize , seller_state_length: usi
 
 
     let (product_state, seller_state) = input.split_at(product_state_length);
-   //cbor decode byte array 
+    let product_review: ProductReview = serde_cbor::from_slice(product_state).expect("Failed to decode CBOR data");
+    let seller_review: SellerReview = serde_cbor::from_slice(seller_state).expect("Failed to decode CBOR data");
+    //append ProductReview and SellerReview
+    // let product_id = product_review.ProductId;
+    // let current_rating = product_review.Rating;
+    // let rating_count = product_review.RatingCount;
 
+    // let seller_did = seller_review.DID;
+    // let seller_rating = seller_review.SellerRating;
+    // let seller_product_count = seller_review.ProductCount;
+
+    // let new_count = rating_count + 1.00;
+    // let new_rating = (current_rating * rating_count + rating) / new_count;
+    // println!("new Rating is {}", new_rating );
+
+    let product_review_test = ProductReview{ ProductId: "Dummy".to_owned(), Rating: 1.0, RatingCount: 1.0, SellerDID: "DID".to_owned() };
+    let seller_review_test = SellerReview{ DID: "DID".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
+    let cbor_product_review:Vec<u8> = serde_cbor::to_vec(&product_review).expect("Failed to serialize to CBOR");
+    let cbor_seller_review:Vec<u8> = serde_cbor::to_vec(&seller_review).expect("Failed to serialize to CBOR");
+    let latest_product_len = cbor_product_review.len();
+    let latest_seller_len = cbor_seller_review.len();
   //  current_seller_rating = ()/(total_seller_product_count);
-    let mut seller_did_vec:Vec<u8> = Vec::with_capacity(seller_did.len());
-    seller_did_vec.extend_from_slice(seller_did);
+    // append two vectors
+    let combined_vec = [cbor_product_review, cbor_seller_review].concat();
 
     // dump output data
     unsafe {
-        dump_output(product_id.as_ptr() , current_rating, total_count, product_id.len(),seller_did_vec.len(), 1.0, seller_did.as_ptr());
+        dump_output(combined_vec.as_ptr() , latest_product_len,latest_seller_len);
 
     }
 }
