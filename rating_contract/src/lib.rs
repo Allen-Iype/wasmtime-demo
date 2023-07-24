@@ -46,31 +46,31 @@ pub extern "C" fn handler(product_state_length: usize , seller_state_length: usi
     let product_review: ProductReview = serde_cbor::from_slice(product_state).expect("Failed to decode CBOR data");
     let seller_review: SellerReview = serde_cbor::from_slice(seller_state).expect("Failed to decode CBOR data");
     //append ProductReview and SellerReview
-    // let product_id = product_review.ProductId;
-    // let current_rating = product_review.Rating;
-    // let rating_count = product_review.RatingCount;
+    let product_id = product_review.ProductId;
+    let current_rating = product_review.Rating;
+    let rating_count = product_review.RatingCount;
 
-    // let seller_did = seller_review.DID;
-    // let seller_rating = seller_review.SellerRating;
-    // let seller_product_count = seller_review.ProductCount;
+    let seller_did = seller_review.DID;
+    let seller_rating = seller_review.SellerRating;
+    let seller_product_count = seller_review.ProductCount;
 
-    // let new_count = rating_count + 1.00;
-    // let new_rating = (current_rating * rating_count + rating) / new_count;
-    // println!("new Rating is {}", new_rating );
+    let new_count = rating_count + 1.00;
+    let new_rating = (current_rating * rating_count + rating) / new_count;
+    println!("new Rating is {}", new_rating );
 
-//     let product_review_test = ProductReview{ ProductId: "Dummy".to_owned(), Rating: 1.0, RatingCount: 1.0, SellerDID: "DID".to_owned() };
-//     let seller_review_test = SellerReview{ DID: "DID".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
-//     let cbor_product_review:Vec<u8> = serde_cbor::to_vec(&product_review).expect("Failed to serialize to CBOR");
-//     let cbor_seller_review:Vec<u8> = serde_cbor::to_vec(&seller_review).expect("Failed to serialize to CBOR");
-//     let latest_product_len = cbor_product_review.len();
-//     let latest_seller_len = cbor_seller_review.len();
-//   //  current_seller_rating = ()/(total_seller_product_count);
-//     // append two vectors
-//     let combined_vec = [cbor_product_review, cbor_seller_review].concat();
+    let product_review_test = ProductReview{ ProductId: "Dummy".to_owned(), Rating: 1.0, RatingCount: 1.0, SellerDID: "DID".to_owned() };
+    let seller_review_test = SellerReview{ DID: "Test".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
+    let cbor_product_review:Vec<u8> = serde_cbor::to_vec(&product_review_test).expect("Failed to serialize to CBOR");
+    let cbor_seller_review:Vec<u8> = serde_cbor::to_vec(&seller_review_test).expect("Failed to serialize to CBOR");
+    let latest_product_len = cbor_product_review.len();
+    let latest_seller_len = cbor_seller_review.len();
+  //  current_seller_rating = ()/(total_seller_product_count);
+    // append two vectors
+    let combined_vec = [cbor_product_review, cbor_seller_review].concat();
 
     // dump output data
     unsafe {
-        dump_output(input.as_ptr() , product_state_length,seller_state_length);
+        dump_output(combined_vec.as_ptr() , latest_product_len,latest_seller_len);
 
     }
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"os"
 
@@ -79,27 +80,48 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	review := ProductReview{}
 	sellerReview := SellerReview{}
 	cborData := r.productId[:productReviewLength]
-	//cborDataSeller := r.productId[productReviewLength:]
-
+	cborDataSeller := r.productId[productReviewLength:]
+	fmt.Println("Length of cborData :", len(cborData))
+	fmt.Println("Length of cborDataSeller :", len(cborDataSeller))
 	// Print the CBOR data slices to verify they are correct
 	fmt.Println("CBOR Data:", cborData)
-	//fmt.Println("CBOR Data Seller:", cborDataSeller)
+	fmt.Printf("CBOR Data Seller: %v", cborDataSeller)
 
 	err := cbor.Unmarshal(cborData, &review)
 	if err != nil {
 		fmt.Println("Error unmarshaling ProductReview:", err)
 	}
+	fmt.Println(review.ProductId)
+	fmt.Println(review.Rating)
+	fmt.Println(review.RatingCount)
 
-	// err2 := cbor.Unmarshal(cborDataSeller, &sellerReview)
-	// if err2 != nil {
-	// 	fmt.Println("Error unmarshaling SellerReview:", err2)
-	// }
+	err2 := cbor.Unmarshal(cborDataSeller, &sellerReview)
+	if err2 != nil {
+		fmt.Println("Error unmarshaling SellerReview:", err2)
+	}
 
 	// Print the decoded values to verify they are correct
 	fmt.Println("Latest Product Review:", review)
 	fmt.Println("Latest Seller Review:", sellerReview)
 
 	// Rest of the code for writing to JSON files
+	content, err := json.Marshal(review)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sellerContent, err := json.Marshal(sellerReview)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = os.WriteFile("store_state/rating_contract/seller_rating.json", sellerContent, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
@@ -197,10 +219,11 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 func main() {
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
+
 	if err != nil {
 		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
 	}
-
+	fmt.Println("Encoded Product State length :", len(encodedProductState))
 	fmt.Println("CBOR encoded data :", encodedProductState)
 	fmt.Println("ProductId : ", productStateUpdate.Rating)
 	fmt.Println("Current Rating : ", productStateUpdate.Rating)
@@ -224,6 +247,14 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
 	}
+	fmt.Println("Encoded Seller State length :", len(encodedSellerState))
+	review := ProductReview{}
+	err3 := cbor.Unmarshal(encodedProductState, &review)
+	if err3 != nil {
+		fmt.Println("Error unmarshaling ProductReview:", err3)
+	}
+
+	fmt.Printf("%+v", review)
 
 	fmt.Println("CBOR encoded data :", encodedSellerState)
 
