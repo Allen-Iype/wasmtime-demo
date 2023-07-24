@@ -22,18 +22,23 @@ type WasmtimeRuntime struct {
 	sellerDID []byte
 }
 
+//	type SellerReview struct {
+//		DID          string  `cbor: "did"`
+//		SellerRating float32 `cbor: "seller_rating"`
+//		ProductCount float32 `cbor:"product_count"` //This can be changed to the list of products the seller has and calcuate the length of the array to get the no of products
+//	}
 type SellerReview struct {
-	DID          string
-	SellerRating float32
-	ProductCount float32 //This can be changed to the list of products the seller has and calcuate the length of the array to get the no of products
+	DID          string  `cbor:"did"`
+	SellerRating float32 `cbor:"seller_rating"`
+	ProductCount float32 `cbor:"product_count"`
 }
 
 // Suggestion : Each product can be made into a data token and the product description can be given as the content of the token
 type ProductReview struct {
-	ProductId   string
-	Rating      float32
-	RatingCount float32
-	SellerDID   string
+	ProductId   string  `cbor:"product_id"`
+	Rating      float32 `cbor:"rating"`
+	RatingCount float32 `cbor:"rating_count"`
+	SellerDID   string  `cbor:"seller_did"`
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
@@ -59,27 +64,47 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 /* Here when 2 strings are passed productId :"AB" and sellerDID : "DFG" the ouput obtained r,productId is "AB" and r.sellerdid is "ABD",
 so the inference is when value is copied from r.store, irrespective of the pointer it is copying from the start of the memory till the length specified */
 
+// Assuming `ProductReview` and `SellerReview` structs are defined correctly
+
 func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
-	fmt.Println("pointer :", pointer)
-	fmt.Println("productReviewLength :", productReviewLength)
-	fmt.Println("sellerReviewLength :", sellerReviewLength)
+	fmt.Println("pointer:", pointer)
+	fmt.Println("productReviewLength:", productReviewLength)
+	fmt.Println("sellerReviewLength:", sellerReviewLength)
 
 	r.productId = make([]byte, productReviewLength+sellerReviewLength)
-	//r.sellerDID = make([]byte, sellerDidLength)
 	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
-	//	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
-	//split byte array according to length
+
+	// Print the raw CBOR data to verify it is correct
+	fmt.Println("Raw CBOR Data:", r.productId)
+
 	review := ProductReview{}
 	sellerReview := SellerReview{}
 	cborData := r.productId[:productReviewLength]
 	cborDataSeller := r.productId[productReviewLength:]
-	latestProductReview := cbor.Unmarshal(cborData, review)
-	latestSellerReview := cbor.Unmarshal(cborDataSeller, sellerReview)
-	fmt.Println("Latest Product Review", latestProductReview)
-	fmt.Println("Latest Seller Review", latestSellerReview)
+	fmt.Println("Length of cborData :", len(cborData))
+	fmt.Println("Length of cborDataSeller :", len(cborDataSeller))
+	// Print the CBOR data slices to verify they are correct
+	fmt.Println("CBOR Data:", cborData)
+	fmt.Printf("CBOR Data Seller: %v", cborDataSeller)
 
-	fmt.Println("Combined Byte Array :", r.productId)
-	fmt.Println("Lenght of Byte Array", len(r.productId))
+	err := cbor.Unmarshal(cborData, &review)
+	if err != nil {
+		fmt.Println("Error unmarshaling ProductReview:", err)
+	}
+	fmt.Println(review.ProductId)
+	fmt.Println(review.Rating)
+	fmt.Println(review.RatingCount)
+
+	err2 := cbor.Unmarshal(cborDataSeller, &sellerReview)
+	if err2 != nil {
+		fmt.Println("Error unmarshaling SellerReview:", err2)
+	}
+
+	// Print the decoded values to verify they are correct
+	fmt.Println("Latest Product Review:", review)
+	fmt.Println("Latest Seller Review:", sellerReview)
+
+	// Rest of the code for writing to JSON files
 	content, err := json.Marshal(review)
 	if err != nil {
 		fmt.Println(err)
@@ -99,10 +124,66 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	}
 }
 
+// func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
+// 	fmt.Println("pointer :", pointer)
+// 	fmt.Println("productReviewLength :", productReviewLength)
+// 	fmt.Println("sellerReviewLength :", sellerReviewLength)
+
+// 	r.productId = make([]byte, productReviewLength+sellerReviewLength)
+// 	//r.sellerDID = make([]byte, sellerDidLength)
+// 	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
+// 	//	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
+// 	//split byte array according to length
+// 	review := ProductReview{}
+// 	sellerReview := SellerReview{}
+// 	cborData := r.productId[:productReviewLength]
+// 	cborDataSeller := r.productId[productReviewLength:]
+// 	fmt.Println("CborDta ", cborData)
+// 	fmt.Println("CborDtaSeller ", cborDataSeller)
+
+// 	err := cbor.Unmarshal(cborData, &review)
+// 	fmt.Println("err :", err)
+// 	if err != nil {
+// 		// Handle the error appropriately, e.g., log the error, return an error response, etc.
+// 		fmt.Println("Error unmarshaling ProductReview:", err)
+// 	}
+// 	err2 := cbor.Unmarshal(cborDataSeller, &sellerReview)
+// 	if err2 != nil {
+// 		// Handle the error appropriately, e.g., log the error, return an error response, etc.
+// 		fmt.Println("Error unmarshaling SellerReview:", err)
+// 	}
+// 	fmt.Println("Latest Product Review", review)
+// 	fmt.Println("Latest Seller Review", sellerReview)
+
+// 	fmt.Println("Combined Byte Array :", r.productId)
+// 	fmt.Println("Lenght of Byte Array", len(r.productId))
+// 	content, err := json.Marshal(review)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	sellerContent, err := json.Marshal(sellerReview)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	err = os.WriteFile("store_state/rating_contract/seller_rating.json", sellerContent, 0644)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
+
 // TO DO : Optimise the memory usage
 func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sellerStateLength int32, rating float32) []byte {
 	r.input = data
-	r.handler.Call(r.store, productStateLength, sellerStateLength)
+	_, err := r.handler.Call(r.store, productStateLength, sellerStateLength, rating)
+	if err != nil {
+		panic(fmt.Errorf("Failed to call function: %v", err))
+	}
+
 	fmt.Println("Result:", r.productId)
 	return r.productId
 }
@@ -138,10 +219,11 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 func main() {
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
+
 	if err != nil {
 		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
 	}
-
+	fmt.Println("Encoded Product State length :", len(encodedProductState))
 	fmt.Println("CBOR encoded data :", encodedProductState)
 	fmt.Println("ProductId : ", productStateUpdate.Rating)
 	fmt.Println("Current Rating : ", productStateUpdate.Rating)
@@ -165,13 +247,20 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to encode string as CBOR: %v", err))
 	}
+	fmt.Println("Encoded Seller State length :", len(encodedSellerState))
+	review := ProductReview{}
+	err3 := cbor.Unmarshal(encodedProductState, &review)
+	if err3 != nil {
+		fmt.Println("Error unmarshaling ProductReview:", err3)
+	}
+
+	fmt.Printf("%+v", review)
 
 	fmt.Println("CBOR encoded data :", encodedSellerState)
 
 	merge := append(encodedProductState, encodedSellerState...)
-	fmt.Println("Encoded product length", len(encodedProductState))
-	fmt.Println("Encoded seller length", len(encodedSellerState))
-	fmt.Println(merge)
+	fmt.Println("Merge : ", merge)
+	fmt.Println("Merge length : ", len(merge))
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(randomRating))
