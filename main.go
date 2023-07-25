@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -55,7 +56,7 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 	r.store.SetWasi(wasiConfig)
 	linker.FuncWrap("env", "load_input", r.loadInput)
 	linker.FuncWrap("env", "dump_output", r.dumpOutput)
-	//	linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
+	linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
 	wasmBytes, _ := os.ReadFile(wasmFile)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
@@ -191,6 +192,76 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	}
 }
 
+// // function to call an api from GO
+// func callAPI(url string) ([]byte, error) {
+//     response, err := http.Get(url)
+//     if err != nil {
+//         return nil, err
+//     }
+//     defer response.Body.Close()
+
+//     if response.StatusCode != http.StatusOK {
+//         return nil, fmt.Errorf("API returned a non-200 status code: %d", response.StatusCode)
+//     }
+
+//     data, err := ioutil.ReadAll(response.Body)
+//     if err != nil {
+//         return nil, err
+//     }
+
+//     return data, nil
+// }
+
+func callApi() {
+	fmt.Println("Call Api")
+	port := "20001"
+	did := "bafybmid3slphcoalnccv6hei3k2dg34qdzltovzl6uarhs7an363e4apmy"
+	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
+	apiURL, err := url.Parse(baseURL)
+	fmt.Println(apiURL)
+	if err != nil {
+		fmt.Printf("Error parsing URL: %s\n", err)
+		return
+	}
+
+	// Add the query parameter to the URL
+	queryValues := apiURL.Query()
+	queryValues.Add("did", did)
+	queryValues.Add("port", port)
+	fmt.Println("Query Values", queryValues)
+	apiURL.RawQuery = queryValues.Encode()
+	fmt.Println("Api Raw Query URL:", apiURL.RawQuery)
+	fmt.Println("Query Values Encode:", queryValues.Encode())
+	fmt.Println("Api URL string:", apiURL.String())
+	response, err := http.Get(apiURL.String())
+	if err != nil {
+		fmt.Printf("Error making GET request: %s\n", err)
+		return
+	}
+	fmt.Println("Response Status:", response.Status)
+	defer response.Body.Close()
+
+	// Handle the response data as needed
+	if response.StatusCode == http.StatusOK {
+		data, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			fmt.Printf("Error reading response body: %s\n", err)
+			return
+		}
+		// Process the data as needed
+		fmt.Println("Response Body:", string(data))
+	} else {
+		fmt.Printf("API returned a non-200 status code: %d\n", response.StatusCode)
+		data, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			fmt.Printf("Error reading error response body: %s\n", err)
+			return
+		}
+		fmt.Println("Error Response Body:", string(data))
+		return
+	}
+}
+
 // TO DO : Optimise the memory usage
 func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sellerStateLength int32, rating float32) []byte {
 	r.input = data
@@ -252,7 +323,7 @@ func main() {
 	// sellerRating := float32(5)
 	// productCount := float32(1)
 	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
-
+	//callApi()
 	fmt.Println("Random Rating :", randomRating)
 	fmt.Println("SellerId: ", sellerStateUpdate.DID)
 	fmt.Println("Seller Rating : ", sellerStateUpdate.SellerRating)
