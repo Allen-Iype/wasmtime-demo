@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -17,9 +19,9 @@ type WasmtimeRuntime struct {
 	memory  *wasmtime.Memory
 	handler *wasmtime.Func
 
-	input     []byte
-	productId []byte
-	sellerDID []byte
+	input  []byte
+	output []byte
+	//	sellerDID []byte
 }
 
 //	type SellerReview struct {
@@ -42,14 +44,18 @@ type ProductReview struct {
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
+	fmt.Println("Initialising")
 	engine := wasmtime.NewEngine()
 	linker := wasmtime.NewLinker(engine)
-	linker.DefineWasi()
+	err := linker.DefineWasi()
+	fmt.Println("DefineWasi :", err)
 	wasiConfig := wasmtime.NewWasiConfig()
+	fmt.Println(wasiConfig)
 	r.store = wasmtime.NewStore(engine)
 	r.store.SetWasi(wasiConfig)
 	linker.FuncWrap("env", "load_input", r.loadInput)
 	linker.FuncWrap("env", "dump_output", r.dumpOutput)
+	//	linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
 	wasmBytes, _ := os.ReadFile(wasmFile)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
@@ -65,30 +71,91 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 so the inference is when value is copied from r.store, irrespective of the pointer it is copying from the start of the memory till the length specified */
 
 // Assuming `ProductReview` and `SellerReview` structs are defined correctly
+func (r *WasmtimeRuntime) getAccountInfo(pointer int32, productStateLength int32, sellerStateLength int32) error {
+	port := "20001"
+	r.output = make([]byte, productStateLength+sellerStateLength)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productStateLength+sellerStateLength])
+
+	sellerReviewCbor := r.output[productStateLength:]
+	fmt.Println("Seller Review CBOR :", sellerReviewCbor)
+	sellerReview := SellerReview{}
+	err := cbor.Unmarshal(sellerReviewCbor, &sellerReview)
+	if err != nil {
+		fmt.Println("Error unmarshaling SellerReview:", err)
+	}
+	fmt.Println("Seller DID :", sellerReview.DID)
+	did := sellerReview.DID
+	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
+	apiURL, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("Error parsing URL: %s", err)
+	}
+
+	// Add the query parameter to the URL
+	queryValues := apiURL.Query()
+	queryValues.Add("did", did)
+	apiURL.RawQuery = queryValues.Encode()
+	response, err := http.Get(apiURL.String())
+	if err != nil {
+		return fmt.Errorf("Error making GET request: %s", err)
+	}
+	fmt.Println("Response :", response)
+	defer response.Body.Close()
+	return nil
+}
 
 func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
 	fmt.Println("pointer:", pointer)
 	fmt.Println("productReviewLength:", productReviewLength)
 	fmt.Println("sellerReviewLength:", sellerReviewLength)
 
-	r.productId = make([]byte, productReviewLength+sellerReviewLength)
-	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
+	r.output = make([]byte, productReviewLength+sellerReviewLength)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
+
+	sellerReviewCbor := r.output[productReviewLength:]
+	fmt.Println("Seller Review CBOR :", sellerReviewCbor)
+	sellerReview := SellerReview{}
+	err := cbor.Unmarshal(sellerReviewCbor, &sellerReview)
+	if err != nil {
+		fmt.Println("Error unmarshaling SellerReview:", err)
+	}
+	fmt.Println("Seller DID :", sellerReview.DID)
+	did := sellerReview.DID
+	port := "20001"
+	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
+	apiURL, err := url.Parse(baseURL)
+	if err != nil {
+		fmt.Println("Error parsing URL: %s", err)
+	}
+
+	// Add the query parameter to the URL
+	queryValues := apiURL.Query()
+	queryValues.Add("did", did)
+	queryValues.Add("port", port)
+
+	apiURL.RawQuery = queryValues.Encode()
+	response, err := http.Get(apiURL.String())
+	if err != nil {
+		fmt.Println("Error making GET request: %s", err)
+	}
+	fmt.Println("Response :", response)
+	defer response.Body.Close()
 
 	// Print the raw CBOR data to verify it is correct
-	fmt.Println("Raw CBOR Data:", r.productId)
+	fmt.Println("Raw CBOR Data:", r.output)
 
 	review := ProductReview{}
-	sellerReview := SellerReview{}
-	cborData := r.productId[:productReviewLength]
-	cborDataSeller := r.productId[productReviewLength:]
+	//sellerReview := SellerReview{}
+	cborData := r.output[:productReviewLength]
+	cborDataSeller := r.output[productReviewLength:]
 	fmt.Println("Length of cborData :", len(cborData))
 	fmt.Println("Length of cborDataSeller :", len(cborDataSeller))
 	// Print the CBOR data slices to verify they are correct
 	fmt.Println("CBOR Data:", cborData)
 	fmt.Printf("CBOR Data Seller: %v", cborDataSeller)
 
-	err := cbor.Unmarshal(cborData, &review)
-	if err != nil {
+	err3 := cbor.Unmarshal(cborData, &review)
+	if err3 != nil {
 		fmt.Println("Error unmarshaling ProductReview:", err)
 	}
 	fmt.Println(review.ProductId)
@@ -124,58 +191,6 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	}
 }
 
-// func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
-// 	fmt.Println("pointer :", pointer)
-// 	fmt.Println("productReviewLength :", productReviewLength)
-// 	fmt.Println("sellerReviewLength :", sellerReviewLength)
-
-// 	r.productId = make([]byte, productReviewLength+sellerReviewLength)
-// 	//r.sellerDID = make([]byte, sellerDidLength)
-// 	copy(r.productId, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
-// 	//	copy(r.sellerDID, r.memory.UnsafeData(r.store)[pointer:sellerDidPointer+sellerDidLength])
-// 	//split byte array according to length
-// 	review := ProductReview{}
-// 	sellerReview := SellerReview{}
-// 	cborData := r.productId[:productReviewLength]
-// 	cborDataSeller := r.productId[productReviewLength:]
-// 	fmt.Println("CborDta ", cborData)
-// 	fmt.Println("CborDtaSeller ", cborDataSeller)
-
-// 	err := cbor.Unmarshal(cborData, &review)
-// 	fmt.Println("err :", err)
-// 	if err != nil {
-// 		// Handle the error appropriately, e.g., log the error, return an error response, etc.
-// 		fmt.Println("Error unmarshaling ProductReview:", err)
-// 	}
-// 	err2 := cbor.Unmarshal(cborDataSeller, &sellerReview)
-// 	if err2 != nil {
-// 		// Handle the error appropriately, e.g., log the error, return an error response, etc.
-// 		fmt.Println("Error unmarshaling SellerReview:", err)
-// 	}
-// 	fmt.Println("Latest Product Review", review)
-// 	fmt.Println("Latest Seller Review", sellerReview)
-
-// 	fmt.Println("Combined Byte Array :", r.productId)
-// 	fmt.Println("Lenght of Byte Array", len(r.productId))
-// 	content, err := json.Marshal(review)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	sellerContent, err := json.Marshal(sellerReview)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	err = os.WriteFile("store_state/rating_contract/seller_rating.json", sellerContent, 0644)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
-
 // TO DO : Optimise the memory usage
 func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sellerStateLength int32, rating float32) []byte {
 	r.input = data
@@ -184,8 +199,8 @@ func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sell
 		panic(fmt.Errorf("Failed to call function: %v", err))
 	}
 
-	fmt.Println("Result:", r.productId)
-	return r.productId
+	fmt.Println("Result:", r.output)
+	return r.output
 }
 
 func ReadProductReview(filePath string) ProductReview {
