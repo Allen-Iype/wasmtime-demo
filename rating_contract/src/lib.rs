@@ -27,7 +27,7 @@ struct SellerReview {
 extern "C" {
     fn load_input(pointer: *mut u8);
     fn dump_output(pointer: *const u8, product_review_len: usize , seller_review_len: usize);
-   fn get_account_info(pointer: *const u8, product_state_length: usize,seller_state_length: usize);
+   fn get_account_info();
 }
 
 //did,rating,count
@@ -60,7 +60,7 @@ pub extern "C" fn handler(product_state_length: usize , seller_state_length: usi
     println!("new Rating is {}", new_rating );
 
     let product_review_test = ProductReview{ ProductId: "Dummy".to_owned(), Rating: 1.0, RatingCount: 1.0, SellerDID: "DID".to_owned() };
-    let seller_review_test = SellerReview{ DID: "bafybmid3slphcoalnccv6hei3k2dg34qdzltovzl6uarhs7an363e4apmy".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
+    let seller_review_test = SellerReview{ DID: "bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa".to_owned(), SellerRating: 2.0, ProductCount: 1.0 };
     let cbor_product_review:Vec<u8> = serde_cbor::to_vec(&product_review_test).expect("Failed to serialize to CBOR");
     let cbor_seller_review:Vec<u8> = serde_cbor::to_vec(&seller_review_test).expect("Failed to serialize to CBOR");
     let latest_product_len = cbor_product_review.len();
@@ -72,7 +72,7 @@ pub extern "C" fn handler(product_state_length: usize , seller_state_length: usi
     // dump output data
     unsafe {
        dump_output(combined_vec.as_ptr() , latest_product_len,latest_seller_len);
-      // get_account_info(combined_vec.as_ptr(),latest_product_len,latest_seller_len)
+      get_account_info()
 
     }
 }

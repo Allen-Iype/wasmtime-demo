@@ -72,38 +72,38 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 so the inference is when value is copied from r.store, irrespective of the pointer it is copying from the start of the memory till the length specified */
 
 // Assuming `ProductReview` and `SellerReview` structs are defined correctly
-func (r *WasmtimeRuntime) getAccountInfo(pointer int32, productStateLength int32, sellerStateLength int32) error {
-	port := "20001"
-	r.output = make([]byte, productStateLength+sellerStateLength)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productStateLength+sellerStateLength])
+// func (r *WasmtimeRuntime) getAccountInfo(pointer int32, productStateLength int32, sellerStateLength int32) error {
+// 	port := "20001"
+// 	r.output = make([]byte, productStateLength+sellerStateLength)
+// 	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productStateLength+sellerStateLength])
 
-	sellerReviewCbor := r.output[productStateLength:]
-	fmt.Println("Seller Review CBOR :", sellerReviewCbor)
-	sellerReview := SellerReview{}
-	err := cbor.Unmarshal(sellerReviewCbor, &sellerReview)
-	if err != nil {
-		fmt.Println("Error unmarshaling SellerReview:", err)
-	}
-	fmt.Println("Seller DID :", sellerReview.DID)
-	did := sellerReview.DID
-	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
-	apiURL, err := url.Parse(baseURL)
-	if err != nil {
-		return fmt.Errorf("Error parsing URL: %s", err)
-	}
+// 	sellerReviewCbor := r.output[productStateLength:]
+// 	fmt.Println("Seller Review CBOR :", sellerReviewCbor)
+// 	sellerReview := SellerReview{}
+// 	err := cbor.Unmarshal(sellerReviewCbor, &sellerReview)
+// 	if err != nil {
+// 		fmt.Println("Error unmarshaling SellerReview:", err)
+// 	}
+// 	fmt.Println("Seller DID :", sellerReview.DID)
+// 	did := sellerReview.DID
+// 	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
+// 	apiURL, err := url.Parse(baseURL)
+// 	if err != nil {
+// 		return fmt.Errorf("Error parsing URL: %s", err)
+// 	}
 
-	// Add the query parameter to the URL
-	queryValues := apiURL.Query()
-	queryValues.Add("did", did)
-	apiURL.RawQuery = queryValues.Encode()
-	response, err := http.Get(apiURL.String())
-	if err != nil {
-		return fmt.Errorf("Error making GET request: %s", err)
-	}
-	fmt.Println("Response :", response)
-	defer response.Body.Close()
-	return nil
-}
+// 	// Add the query parameter to the URL
+// 	queryValues := apiURL.Query()
+// 	queryValues.Add("did", did)
+// 	apiURL.RawQuery = queryValues.Encode()
+// 	response, err := http.Get(apiURL.String())
+// 	if err != nil {
+// 		return fmt.Errorf("Error making GET request: %s", err)
+// 	}
+// 	fmt.Println("Response :", response)
+// 	defer response.Body.Close()
+// 	return nil
+// }
 
 func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
 	fmt.Println("pointer:", pointer)
@@ -122,7 +122,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	}
 	fmt.Println("Seller DID :", sellerReview.DID)
 	did := sellerReview.DID
-	port := "20001"
+	port := "20002"
 	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
 	apiURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -200,30 +200,10 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	}
 }
 
-// // function to call an api from GO
-// func callAPI(url string) ([]byte, error) {
-//     response, err := http.Get(url)
-//     if err != nil {
-//         return nil, err
-//     }
-//     defer response.Body.Close()
-
-//     if response.StatusCode != http.StatusOK {
-//         return nil, fmt.Errorf("API returned a non-200 status code: %d", response.StatusCode)
-//     }
-
-//     data, err := ioutil.ReadAll(response.Body)
-//     if err != nil {
-//         return nil, err
-//     }
-
-//     return data, nil
-// }
-
-func callApi() {
+func (r *WasmtimeRuntime) getAccountInfo() {
 	fmt.Println("Call Api")
-	port := "20001"
-	did := "bafybmid3slphcoalnccv6hei3k2dg34qdzltovzl6uarhs7an363e4apmy"
+	port := "20002"
+	did := "bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
 	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
 	apiURL, err := url.Parse(baseURL)
 	fmt.Println(apiURL)
