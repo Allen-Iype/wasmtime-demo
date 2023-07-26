@@ -139,8 +139,16 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	if err != nil {
 		fmt.Println("Error making GET request: %s", err)
 	}
-	fmt.Println("Response :", response)
+	fmt.Println("Response :", response.Body)
 	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+
+	// Convert the response body to string and print it
+	fmt.Println("Response:", string(body))
 
 	// Print the raw CBOR data to verify it is correct
 	fmt.Println("Raw CBOR Data:", r.output)
