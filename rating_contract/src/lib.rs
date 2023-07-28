@@ -27,7 +27,8 @@ struct SellerReview {
 extern "C" {
     fn load_input(pointer: *mut u8);
     fn dump_output(pointer: *const u8, product_review_len: usize , seller_review_len: usize);
-   fn get_account_info();
+    fn get_account_info();
+    fn initiate_transfer();
 }
 
 //did,rating,count
@@ -72,7 +73,9 @@ pub extern "C" fn handler(product_state_length: usize , seller_state_length: usi
     // dump output data
     unsafe {
        dump_output(combined_vec.as_ptr() , latest_product_len,latest_seller_len);
-      get_account_info()
+       initiate_transfer();
+       get_account_info();
+      
 
     }
 }

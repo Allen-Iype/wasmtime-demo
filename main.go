@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -48,6 +49,7 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 	linker.FuncWrap("env", "load_input", r.loadInput)
 	linker.FuncWrap("env", "dump_output", r.dumpOutput)
 	linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
+	linker.FuncWrap("env", "initiate_transfer", r.InitiateTransaction)
 	wasmBytes, _ := os.ReadFile(wasmFile)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
@@ -161,20 +163,82 @@ func (r *WasmtimeRuntime) getAccountInfo() {
 	}
 }
 
+func (r *WasmtimeRuntime) InitiateTransaction() {
+	port := "20002"
+	receiver := "12D3KooWSokjA3JcWZNJUz4B6mN7tYBH75bSSGoxQwqJ1kTBSvgM.bafybmiegyiz5zvnveqx3lc3cealx3zfwiclwpntaf3ep3zm2slexbzj33u"
+	sender := "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
+	tokenCount := 1
+	comment := "Wasm Test"
+
+	data := map[string]interface{}{
+		"receiver":   receiver,
+		"sender":     sender,
+		"tokenCOunt": tokenCount,
+		"comment":    comment,
+		"type":       2,
+	}
+
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+
+	fmt.Println("initiateTransactionPayload request to rubix:", string(bodyJSON))
+
+	url := fmt.Sprintf("http://localhost:%s/api/initiate-rbt-transfer", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+		return
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+	// Process the data as needed
+	fmt.Println("Response Body:", string(data2))
+
+	defer resp.Body.Close()
+}
+
 // func (r *WasmtimeRuntime) InitiateTransaction() {
-// 	port := "20002"
-// 	apiUrl := fmt.Sprintf("http://localhost:%s/api/initiate-rbt-transfer", port)
+// 	port := 20002
+// 	apiUrl := fmt.Sprintf("http://localhost:%d/api/initiate-rbt-transfer", port)
 // 	// Create a map to hold your form data key-value pairs
-// 	formData := url.Values{
-// 		"port": port,                    // Slice of strings
-// 		"key2": []string{"value3"},      // Slice of strings with a single value
-// 		"key3": []string{"1", "2", "3"}, // Slice of integers (converted to strings)
-// 		"key4": []string{"true"},        // Slice of booleans (converted to strings)
-// 		// Add more key-value pairs as needed
-// 	}
+// 	formData := url.Values{}
+// 	formData.Add("comment", "test")
+// 	formData.Add("sender", "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa")
+// 	formData.Add("receiver", "12D3KooWGUbqmmdMys78RFXhXTrUGJWUk1XRSB4YCH3Nocg7MCZV.bafybmibwkjfdsdrn2vnxtqxhplfin3bxulil5piljtt73xpt4gldx7msnq")
+// 	formData.Add("tokenCOunt", fmt.Sprintf("%d", 1))
+// 	formData.Add("type", fmt.Sprintf("%d", 0))
 
 // 	// Make the HTTP POST request with the form data
 // 	resp, err := http.PostForm(apiUrl, formData)
+// 	if err != nil {
+// 		fmt.Printf("Error posting form data: %s\n", err)
+// 		return
+// 	}
+// 	fmt.Println("Response Status:", resp.Status)
+// 	data, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		fmt.Printf("Error reading response body: %s\n", err)
+// 		return
+// 	}
+// 	// Process the data as needed
+// 	fmt.Println("Response Body:", string(data))
+// 	//req, err := http.NewRequest("POST", apiUrl, strings.NewReader(form.Encode()))
 // 	if err != nil {
 // 		panic(err) // Handle the error appropriately
 // 	}
@@ -216,7 +280,6 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 func main() {
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
-
 	if err != nil {
 		panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
 	}
