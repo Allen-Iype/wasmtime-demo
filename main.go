@@ -61,6 +61,10 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
 
+//schema should be created
+//struct and things are defined in Rust, this schema must be provided to golang for identifying the structure
+//basically the state is stored in the tokenchain.
+
 func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
 
 	r.output = make([]byte, productReviewLength+sellerReviewLength)
