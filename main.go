@@ -415,6 +415,10 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 }
 
 func main() {
+	/* TODO: 1. Execute contract will basically take the input which is given by the user, consider it a vote. This user input will be updated
+	 in the smart contract token chain.
+	2. After the smartcontract tokenchain is synced, wasm must be called and each of the users who have subscribed to the particular
+	smart contract should run the wasm module and save the count in their own respective json files */
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
 	if err != nil {
