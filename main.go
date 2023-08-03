@@ -261,20 +261,57 @@ func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCo
 		return
 	}
 	defer response.Body.Close()
+	data2, err := io.ReadAll(response.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+	// Process the data as needed
+	fmt.Println("Response Body in execute Contract :", string(data2))
 
 	// Process the response as needed
 	fmt.Println("Response status code:", response.StatusCode)
 
 }
 
-func DeploySmartContract() {
+func DeploySmartContract(comment string, deployerAddress string, quorumType int, rbtAmount int, smartContractToken string, port string) {
 	data := map[string]interface{}{
-		reveiverinput: receiver,
-		"sender":      sender,
-		"tokenCOunt":  tokenCount,
-		"comment":     comment,
-		"type":        2,
+		"comment":            comment,
+		"deployerAddr":       deployerAddress,
+		"quorumType":         quorumType,
+		"rbtAmount":          rbtAmount,
+		"smartContractToken": smartContractToken,
 	}
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+	url := fmt.Sprintf("http://localhost:%s/api/deploy-smart-contract", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+		return
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+	// Process the data as needed
+	fmt.Println("Response Body:", string(data2))
+
+	defer resp.Body.Close()
 
 }
 
