@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,6 +25,11 @@ type WasmtimeRuntime struct {
 	input  []byte
 	output []byte
 }
+
+/*From the discussions what I understood is since the Rust part or the Smart contract is written by the DAPP, they would know the structure
+of the data which is being passed or the data which is being used, so this structure which the smart contract deployer or the dapp has
+created must be known to the Go-package. So this structure which is being written in the Rust code must be provided to the GO-code
+as the Schema  */
 
 type SellerReview struct {
 	DID          string  `cbor:"did"`
@@ -148,7 +154,7 @@ func (r *WasmtimeRuntime) getAccountInfo() {
 
 	// Handle the response data as needed
 	if response.StatusCode == http.StatusOK {
-		data, err := ioutil.ReadAll(response.Body)
+		data, err := io.ReadAll(response.Body)
 		if err != nil {
 			fmt.Printf("Error reading response body: %s\n", err)
 			return
@@ -157,7 +163,7 @@ func (r *WasmtimeRuntime) getAccountInfo() {
 		fmt.Println("Response Body:", string(data))
 	} else {
 		fmt.Printf("API returned a non-200 status code: %d\n", response.StatusCode)
-		data, err := ioutil.ReadAll(response.Body)
+		data, err := io.ReadAll(response.Body)
 		if err != nil {
 			fmt.Printf("Error reading error response body: %s\n", err)
 			return
@@ -167,7 +173,7 @@ func (r *WasmtimeRuntime) getAccountInfo() {
 	}
 }
 
-func (r *WasmtimeRuntime) InitiateTransaction() {
+func (r *WasmtimeRuntime) InitiateTransaction(reveiverinput string) {
 	port := "20002"
 	receiver := "12D3KooWSokjA3JcWZNJUz4B6mN7tYBH75bSSGoxQwqJ1kTBSvgM.bafybmiegyiz5zvnveqx3lc3cealx3zfwiclwpntaf3ep3zm2slexbzj33u"
 	sender := "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
@@ -175,11 +181,11 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 	comment := "Wasm Test"
 
 	data := map[string]interface{}{
-		"receiver":   receiver,
-		"sender":     sender,
-		"tokenCOunt": tokenCount,
-		"comment":    comment,
-		"type":       2,
+		reveiverinput: receiver,
+		"sender":      sender,
+		"tokenCOunt":  tokenCount,
+		"comment":     comment,
+		"type":        2,
 	}
 
 	bodyJSON, err := json.Marshal(data)
@@ -206,7 +212,7 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 		return
 	}
 	fmt.Println("Response Status:", resp.Status)
-	data2, err := ioutil.ReadAll(resp.Body)
+	data2, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Printf("Error reading response body: %s\n", err)
 		return
@@ -225,6 +231,51 @@ func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sell
 		panic(fmt.Errorf("failed to call function: %v", err))
 	}
 	return r.output
+}
+
+func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCodePath string, port string) {
+	url := fmt.Sprintf("http://localhost:%s/api/generate-smart-contract", port)
+
+	// Create a new buffer to write the multipart request
+	var requestBody bytes.Buffer
+	multipartWriter := multipart.NewWriter(&requestBody)
+
+	// Add the fields to the request
+	multipartWriter.WriteField("did", did)
+	multipartWriter.CreateFormFile("binaryCodePath", wasmPath)
+	multipartWriter.CreateFormFile("rawCodePath", rawCodePath)
+	multipartWriter.CreateFormFile("schemaFilePath", schemaPath)
+
+	// Close the multipart writer to finalize the request
+	multipartWriter.Close()
+
+	// Create the HTTP request
+	request, _ := http.NewRequest("POST", url, &requestBody)
+	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+
+	// Send the request
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		fmt.Println("Error making the request:", err)
+		return
+	}
+	defer response.Body.Close()
+
+	// Process the response as needed
+	fmt.Println("Response status code:", response.StatusCode)
+
+}
+
+func DeploySmartContract() {
+	data := map[string]interface{}{
+		reveiverinput: receiver,
+		"sender":      sender,
+		"tokenCOunt":  tokenCount,
+		"comment":     comment,
+		"type":        2,
+	}
+
 }
 
 func ReadProductReview(filePath string) ProductReview {
