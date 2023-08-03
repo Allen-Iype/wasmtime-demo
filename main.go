@@ -309,7 +309,85 @@ func DeploySmartContract(comment string, deployerAddress string, quorumType int,
 		return
 	}
 	// Process the data as needed
-	fmt.Println("Response Body:", string(data2))
+	fmt.Println("Response Body in deploy smart contract:", string(data2))
+
+	defer resp.Body.Close()
+
+}
+
+func ExecuteSmartContract(comment string, executorAddress string, quorumType int, smartContractData string, smartContractToken string, port string) {
+	data := map[string]interface{}{
+		"comment":            comment,
+		"executorAddress":    executorAddress,
+		"quorumType":         quorumType,
+		"smartContractData":  smartContractData,
+		"smartContractToken": smartContractToken,
+	}
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+	url := fmt.Sprintf("http://localhost:%s/api/execute-smart-contract", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+		return
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+	// Process the data as needed
+	fmt.Println("Response Body in execute smart contract :", string(data2))
+
+	defer resp.Body.Close()
+
+}
+
+func SubscribeSmartContract(contractToken string, port string) {
+	data := map[string]interface{}{
+		"contract": contractToken,
+	}
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+	url := fmt.Sprintf("http://localhost:%s/api/execute-smart-contract", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+		return
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+	// Process the data as needed
+	fmt.Println("Response Body in execute smart contract :", string(data2))
 
 	defer resp.Body.Close()
 
