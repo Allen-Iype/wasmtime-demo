@@ -174,4 +174,6 @@ func FetchSmartContract(smartContractTokenHash string, port string) {
 
 }
 
-func RunSmartContract()
+func RunSmartContract() {
+
+}

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"wasmtime-demo/server"
 
 	"github.com/bytecodealliance/wasmtime-go"
 	"github.com/fxamacker/cbor/v2"
@@ -419,7 +420,7 @@ func ConvertFloat32ToBytes(floatValue float32) []byte {
 	return bytes
 }
 
-func main() {
+func main_old() {
 	/* TODO: 1. Execute contract will basically take the input which is given by the user, consider it a vote. This user input will be updated
 	 in the smart contract token chain.
 	2. After the smartcontract tokenchain is synced, wasm must be called and each of the users who have subscribed to the particular
@@ -460,5 +461,10 @@ func main() {
 	runtime := &WasmtimeRuntime{}
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(randomRating))
+
+}
+
+func main() {
+	server.Bootup()
 
 }

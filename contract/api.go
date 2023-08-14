@@ -16,8 +16,8 @@ type ContractInputResponse struct {
 }
 
 // mux route handler
-func contractInputHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Contract Input Handler")
+func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
+	//	fmt.Fprintf(w, "Contract Input Handler")
 
 	var req ContractInputRequest
 
@@ -33,7 +33,7 @@ func contractInputHandler(w http.ResponseWriter, r *http.Request) {
 	//fetch smart contract using fetchsmaetcontract api
 	//Then the smart contract must be load, initialised and run
 
-	resp := ContractInputResponse{Message: ""}
+	resp := ContractInputResponse{Message: "", Result: ""}
 	json.NewEncoder(w).Encode(resp)
 
 }
