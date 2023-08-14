@@ -173,7 +173,7 @@ func (r *WasmtimeRuntime) getAccountInfo() {
 	}
 }
 
-func (r *WasmtimeRuntime) InitiateTransaction(reveiverinput string) {
+func (r *WasmtimeRuntime) InitiateTransaction() {
 	port := "20002"
 	receiver := "12D3KooWSokjA3JcWZNJUz4B6mN7tYBH75bSSGoxQwqJ1kTBSvgM.bafybmiegyiz5zvnveqx3lc3cealx3zfwiclwpntaf3ep3zm2slexbzj33u"
 	sender := "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
@@ -181,11 +181,11 @@ func (r *WasmtimeRuntime) InitiateTransaction(reveiverinput string) {
 	comment := "Wasm Test"
 
 	data := map[string]interface{}{
-		reveiverinput: receiver,
-		"sender":      sender,
-		"tokenCOunt":  tokenCount,
-		"comment":     comment,
-		"type":        2,
+		"receiver":   receiver,
+		"sender":     sender,
+		"tokenCOunt": tokenCount,
+		"comment":    comment,
+		"type":       2,
 	}
 
 	bodyJSON, err := json.Marshal(data)
@@ -365,7 +365,7 @@ func SubscribeSmartContract(contractToken string, port string) {
 		fmt.Println("Error marshaling JSON:", err)
 		return
 	}
-	url := fmt.Sprintf("http://localhost:%s/api/execute-smart-contract", port)
+	url := fmt.Sprintf("http://localhost:%s/api/subscribe-smart-contract", port)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		fmt.Println("Error creating HTTP request:", err)
@@ -391,6 +391,11 @@ func SubscribeSmartContract(contractToken string, port string) {
 
 	defer resp.Body.Close()
 
+}
+
+func callbackApiHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Callback API Handler")
+	//create an api endpoint /callback
 }
 
 func ReadProductReview(filePath string) ProductReview {
@@ -419,6 +424,9 @@ func main() {
 	 in the smart contract token chain.
 	2. After the smartcontract tokenchain is synced, wasm must be called and each of the users who have subscribed to the particular
 	smart contract should run the wasm module and save the count in their own respective json files */
+
+	GenerateSmartContract("bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa", "rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm", "store_state/rating_contract/rating.json", "store_state/rating_contract/seller_rating.json", "20002")
+
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
 	if err != nil {
