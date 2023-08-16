@@ -462,6 +462,8 @@ func main_old() {
 	runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(randomRating))
 
+	// javascript style apply on RunHandler
+
 }
 
 func main() {
