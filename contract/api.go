@@ -16,6 +16,9 @@ type ContractInputResponse struct {
 	Result  string `json:"result"`
 }
 
+// /api/get-smart-contract-data
+// latest: false
+//
 // mux route handler
 func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
 	//	fmt.Fprintf(w, "Contract Input Handler")
@@ -41,6 +44,7 @@ func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
 		RunSmartContract(folderPath)
 	} else if err == nil {
 		fmt.Printf("Folder '%s' exists", folderPath)
+
 		RunSmartContract(folderPath)
 
 	} else {

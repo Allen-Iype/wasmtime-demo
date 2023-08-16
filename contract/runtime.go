@@ -38,6 +38,23 @@ type ProductReview struct {
 	SellerDID   string  `cbor:"seller_did"`
 }
 
+type SmartContractDataReply struct {
+	BasicResponse
+	SCTDataReply []SCTDataReply
+}
+
+type BasicResponse struct {
+	Status  bool        `json:"status"`
+	Message string      `json:"message"`
+	Result  interface{} `json:"result"`
+}
+
+type SCTDataReply struct {
+	BlockNo           uint64
+	BlockId           string
+	SmartContractData string
+}
+
 func (r *WasmtimeRuntime) loadInput(pointer int32) {
 	copy(r.memory.UnsafeData(r.store)[pointer:pointer+int32(len(r.input))], r.input)
 }
@@ -263,6 +280,37 @@ func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCo
 
 }
 
+func GetSmartContractData(port string) []byte {
+	data := map[string]interface{}{
+		"latest": false,
+	}
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+	}
+	url := fmt.Sprintf("http://localhost:%s/api/get-smart-contract-data", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+	}
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+	}
+	// Process the data as needed
+	fmt.Println("Response Body in get smart contract data :", string(data2))
+
+	return data2
+
+}
+
 func DeploySmartContract(comment string, deployerAddress string, quorumType int, rbtAmount int, smartContractToken string, port string) {
 	data := map[string]interface{}{
 		"comment":            comment,
@@ -444,6 +492,31 @@ func WasmInput() {
 }
 
 func RunSmartContract(wasmPath string) {
+
+	smartContractTokenData := GetSmartContractData("20002")
+	fmt.Println("Smart Contract Token Data :", string(smartContractTokenData))
+
+	var dataReply SmartContractDataReply
+
+	if err := json.Unmarshal(smartContractTokenData, &dataReply); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	//While this loop is running, there is a question whether any state condition needs to be checked at this point.
+
+	// instead of the runhandler calling all the inputs, a save state function must be created just to update the state, rest everything should
+	//be handled by the runhandler
+
+	// Process each SCTDataReply item in the array
+	for _, sctReply := range dataReply.SCTDataReply {
+		fmt.Println("BlockNo:", sctReply.BlockNo)
+		fmt.Println("BlockId:", sctReply.BlockId)
+		fmt.Println("SmartContractData:", sctReply.SmartContractData)
+
+		// Perform your operations on each sctReply item here
+		fmt.Println()
+	}
+
 	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
 	encodedProductState, err := cbor.Marshal(productStateUpdate)
 	if err != nil {
