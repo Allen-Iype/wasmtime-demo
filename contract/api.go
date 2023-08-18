@@ -41,11 +41,11 @@ func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
 	if os.IsNotExist(err1) {
 		fmt.Println("Smart Contract not found")
 		FetchSmartContract(req.SmartContractHash, port)
-		RunSmartContract(folderPath)
+		RunSmartContract(folderPath, port)
 	} else if err == nil {
 		fmt.Printf("Folder '%s' exists", folderPath)
 
-		RunSmartContract(folderPath)
+		RunSmartContract(folderPath, port)
 
 	} else {
 		fmt.Printf("Error while checking folder: %v\n", err)
@@ -56,7 +56,7 @@ func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
 	//fetch smart contract using fetchsmaetcontract api
 	//Then the smart contract must be load, initialised and run
 
-	resp := ContractInputResponse{Message: "", Result: ""}
+	resp := ContractInputResponse{Message: "Callback Successful", Result: "Success"}
 	json.NewEncoder(w).Encode(resp)
 
 }

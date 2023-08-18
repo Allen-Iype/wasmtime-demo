@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/bytecodealliance/wasmtime-go"
 	"github.com/fxamacker/cbor/v2"
@@ -288,7 +289,7 @@ func GetSmartContractData(port string) []byte {
 	if err != nil {
 		fmt.Println("Error marshaling JSON:", err)
 	}
-	url := fmt.Sprintf("http://localhost:%s/api/get-smart-contract-data", port)
+	url := fmt.Sprintf("http://localhost:%s/api/get-smart-contract-token-chain-data", port)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		fmt.Println("Error creating HTTP request:", err)
@@ -311,7 +312,7 @@ func GetSmartContractData(port string) []byte {
 
 }
 
-func DeploySmartContract(comment string, deployerAddress string, quorumType int, rbtAmount int, smartContractToken string, port string) {
+func DeploySmartContract(comment string, deployerAddress string, quorumType int, rbtAmount int, smartContractToken string, port string) string {
 	data := map[string]interface{}{
 		"comment":            comment,
 		"deployerAddr":       deployerAddress,
@@ -322,17 +323,60 @@ func DeploySmartContract(comment string, deployerAddress string, quorumType int,
 	bodyJSON, err := json.Marshal(data)
 	if err != nil {
 		fmt.Println("Error marshaling JSON:", err)
-		return
 	}
 	url := fmt.Sprintf("http://localhost:%s/api/deploy-smart-contract", port)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		fmt.Println("Error creating HTTP request:", err)
-		return
 	}
 
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+	}
+	// Process the data as needed
+	fmt.Println("Response Body in deploy smart contract:", string(data2))
+	var response map[string]interface{}
+	err3 := json.Unmarshal(data2, &response)
+	if err3 != nil {
+		fmt.Println("Error unmarshaling response:", err3)
+	}
+
+	result := response["result"].(map[string]interface{})
+	id := result["id"].(string)
+
+	defer resp.Body.Close()
+	return id
+
+}
+
+func SignatureResponse(requestId string, port string) {
+	data := map[string]interface{}{
+		"id":       requestId,
+		"mode":     0,
+		"password": "mypassword",
+	}
+
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+	url := fmt.Sprintf("http://localhost:%s/api/signature-response", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -346,8 +390,8 @@ func DeploySmartContract(comment string, deployerAddress string, quorumType int,
 		return
 	}
 	// Process the data as needed
-	fmt.Println("Response Body in deploy smart contract:", string(data2))
-
+	fmt.Println("Response Body in signature response :", string(data2))
+	//json encode string
 	defer resp.Body.Close()
 
 }
@@ -355,7 +399,7 @@ func DeploySmartContract(comment string, deployerAddress string, quorumType int,
 func ExecuteSmartContract(comment string, executorAddress string, quorumType int, smartContractData string, smartContractToken string, port string) {
 	data := map[string]interface{}{
 		"comment":            comment,
-		"executorAddress":    executorAddress,
+		"executorAddr":       executorAddress,
 		"quorumType":         quorumType,
 		"smartContractData":  smartContractData,
 		"smartContractToken": smartContractToken,
@@ -388,6 +432,15 @@ func ExecuteSmartContract(comment string, executorAddress string, quorumType int
 	}
 	// Process the data as needed
 	fmt.Println("Response Body in execute smart contract :", string(data2))
+	var response map[string]interface{}
+	err3 := json.Unmarshal(data2, &response)
+	if err3 != nil {
+		fmt.Println("Error unmarshaling response:", err3)
+	}
+
+	result := response["result"].(map[string]interface{})
+	id := result["id"].(string)
+	SignatureResponse(id, port)
 
 	defer resp.Body.Close()
 
@@ -402,7 +455,7 @@ func SubscribeSmartContract(contractToken string, port string) {
 		fmt.Println("Error marshaling JSON:", err)
 		return
 	}
-	url := fmt.Sprintf("http://localhost:%s/api/subscribe-smart-contract", port)
+	url := fmt.Sprintf("http://localhost:%s/api/subscribe-contract", port)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		fmt.Println("Error creating HTTP request:", err)
@@ -491,9 +544,9 @@ func WasmInput() {
 
 }
 
-func RunSmartContract(wasmPath string) {
+func RunSmartContract(wasmPath string, port string) {
 
-	smartContractTokenData := GetSmartContractData("20002")
+	smartContractTokenData := GetSmartContractData(port)
 	fmt.Println("Smart Contract Token Data :", string(smartContractTokenData))
 
 	var dataReply SmartContractDataReply
@@ -502,6 +555,9 @@ func RunSmartContract(wasmPath string) {
 		fmt.Println("Error:", err)
 		return
 	}
+	runtime := &WasmtimeRuntime{}
+	//runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
+	runtime.Init(wasmPath)
 	//While this loop is running, there is a question whether any state condition needs to be checked at this point.
 
 	// instead of the runhandler calling all the inputs, a save state function must be created just to update the state, rest everything should
@@ -512,44 +568,39 @@ func RunSmartContract(wasmPath string) {
 		fmt.Println("BlockNo:", sctReply.BlockNo)
 		fmt.Println("BlockId:", sctReply.BlockId)
 		fmt.Println("SmartContractData:", sctReply.SmartContractData)
+		productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
+		encodedProductState, err := cbor.Marshal(productStateUpdate)
+		if err != nil {
+			panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
+		}
+		//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
+		//whenever a new seller or product is registered
+		randomRating := sctReply.SmartContractData
+		floatValue, err := strconv.ParseFloat(randomRating, 32)
+		sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
+		fmt.Println("Random Rating :", randomRating)
+		fmt.Println("SellerId: ", sellerStateUpdate.DID)
+		fmt.Println("Seller Rating : ", sellerStateUpdate.SellerRating)
+		fmt.Println("Product Count : ", sellerStateUpdate.ProductCount)
 
+		encodedSellerState, err := cbor.Marshal(sellerStateUpdate)
+		if err != nil {
+			panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
+		}
+		review := ProductReview{}
+		err3 := cbor.Unmarshal(encodedProductState, &review)
+		if err3 != nil {
+			fmt.Println("Error unmarshaling ProductReview:", err3)
+		}
+
+		fmt.Printf("%+v", review)
+
+		fmt.Println("CBOR encoded data :", encodedSellerState)
+
+		merge := append(encodedProductState, encodedSellerState...)
+		runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(floatValue))
 		// Perform your operations on each sctReply item here
 		fmt.Println()
 	}
-
-	productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
-	encodedProductState, err := cbor.Marshal(productStateUpdate)
-	if err != nil {
-		panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
-	}
-	//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
-	//whenever a new seller or product is registered
-	randomRating := 5.00
-
-	sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
-	fmt.Println("Random Rating :", randomRating)
-	fmt.Println("SellerId: ", sellerStateUpdate.DID)
-	fmt.Println("Seller Rating : ", sellerStateUpdate.SellerRating)
-	fmt.Println("Product Count : ", sellerStateUpdate.ProductCount)
-
-	encodedSellerState, err := cbor.Marshal(sellerStateUpdate)
-	if err != nil {
-		panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
-	}
-	review := ProductReview{}
-	err3 := cbor.Unmarshal(encodedProductState, &review)
-	if err3 != nil {
-		fmt.Println("Error unmarshaling ProductReview:", err3)
-	}
-
-	fmt.Printf("%+v", review)
-
-	fmt.Println("CBOR encoded data :", encodedSellerState)
-
-	merge := append(encodedProductState, encodedSellerState...)
-	runtime := &WasmtimeRuntime{}
-	//runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
-	runtime.Init(wasmPath)
-	runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(randomRating))
 
 }
