@@ -61,6 +61,8 @@ func (r *WasmtimeRuntime) loadInput(pointer int32) {
 }
 
 func (r *WasmtimeRuntime) Init(wasmFile string) {
+	fmt.Println(wasmFile)
+	fmt.Println("Initializing wasm")
 	engine := wasmtime.NewEngine()
 	linker := wasmtime.NewLinker(engine)
 	linker.DefineWasi()
@@ -71,7 +73,11 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 	linker.FuncWrap("env", "dump_output", r.dumpOutput)
 	linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
 	linker.FuncWrap("env", "initiate_transfer", r.InitiateTransaction)
-	wasmBytes, _ := os.ReadFile(wasmFile)
+	wasmBytes, err := os.ReadFile(wasmFile)
+	if err != nil {
+		panic(fmt.Errorf("failed to read file: %v", err))
+	}
+	fmt.Println(wasmBytes)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
 	r.memory = instance.GetExport(r.store, "memory").Memory()
@@ -239,36 +245,48 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, s
 	}
 }
 
-// this hsould include the init and reading of the smart contract part
 func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCodePath string, port string) {
-	url := fmt.Sprintf("http://localhost:%s/api/generate-smart-contract", port)
-
-	// Create a new buffer to write the multipart request
 	var requestBody bytes.Buffer
-	multipartWriter := multipart.NewWriter(&requestBody)
+	writer := multipart.NewWriter(&requestBody)
 
-	// Add the fields to the request
-	multipartWriter.WriteField("did", did)
-	multipartWriter.CreateFormFile("binaryCodePath", wasmPath)
-	multipartWriter.CreateFormFile("rawCodePath", rawCodePath)
-	multipartWriter.CreateFormFile("schemaFilePath", schemaPath)
+	// Add the form fields
+	_ = writer.WriteField("did", did)
 
-	// Close the multipart writer to finalize the request
-	multipartWriter.Close()
+	// Add the binaryCodePath field
+	file, _ := os.Open(wasmPath)
+	defer file.Close()
+	binaryPart, _ := writer.CreateFormFile("binaryCodePath", wasmPath)
+	_, _ = io.Copy(binaryPart, file)
+
+	// Add the rawCodePath field
+	rawFile, _ := os.Open(rawCodePath)
+	defer rawFile.Close()
+	rawPart, _ := writer.CreateFormFile("rawCodePath", rawCodePath)
+	_, _ = io.Copy(rawPart, rawFile)
+
+	// Add the schemaFilePath field
+	schemaFile, _ := os.Open(schemaPath)
+	defer schemaFile.Close()
+	schemaPart, _ := writer.CreateFormFile("schemaFilePath", schemaPath)
+	_, _ = io.Copy(schemaPart, schemaFile)
+
+	// Close the writer
+	writer.Close()
 
 	// Create the HTTP request
-	request, _ := http.NewRequest("POST", url, &requestBody)
-	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+	url := fmt.Sprintf("http://localhost:%s/api/generate-smart-contract", port)
+	req, _ := http.NewRequest("POST", url, &requestBody)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	// Send the request
+	// Make the request
 	client := &http.Client{}
-	response, err := client.Do(request)
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error making the request:", err)
+		fmt.Println("Error:", err)
 		return
 	}
-	defer response.Body.Close()
-	data2, err := io.ReadAll(response.Body)
+	defer resp.Body.Close()
+	data2, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Printf("Error reading response body: %s\n", err)
 		return
@@ -277,12 +295,59 @@ func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCo
 	fmt.Println("Response Body in execute Contract :", string(data2))
 
 	// Process the response as needed
-	fmt.Println("Response status code:", response.StatusCode)
-
+	fmt.Println("Response status code:", resp.StatusCode)
 }
 
-func GetSmartContractData(port string) []byte {
+// this hsould include the init and reading of the smart contract part
+// func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCodePath string, port string) {
+// 	url := fmt.Sprintf("http://localhost:%s/api/generate-smart-contract", port)
+
+// 	// Create a new buffer to write the multipart request
+// 	var requestBody bytes.Buffer
+// 	multipartWriter := multipart.NewWriter(&requestBody)
+
+// 	// Add the fields to the request
+// 	multipartWriter.WriteField("did", did)
+// 	multipartWriter.CreateFormFile("binaryCodePath", wasmPath)
+// 	fmt.Println(wasmPath)
+// 	multipartWriter.CreateFormFile("rawCodePath", rawCodePath)
+// 	fmt.Println(rawCodePath)
+// 	multipartWriter.CreateFormFile("schemaFilePath", schemaPath)
+// 	fmt.Println(schemaPath)
+
+// 	// Close the multipart writer to finalize the request
+// 	multipartWriter.Close()
+
+// 	fmt.Println(requestBody)
+
+// 	// Create the HTTP request
+// 	request, _ := http.NewRequest("POST", url, &requestBody)
+// 	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+
+// 	// Send the request
+// 	client := &http.Client{}
+// 	response, err := client.Do(request)
+// 	if err != nil {
+// 		fmt.Println("Error making the request:", err)
+// 		return
+// 	}
+// 	defer response.Body.Close()
+// 	data2, err := io.ReadAll(response.Body)
+// 	if err != nil {
+// 		fmt.Printf("Error reading response body: %s\n", err)
+// 		return
+// 	}
+// 	// Process the data as needed
+// 	fmt.Println("Response Body in execute Contract :", string(data2))
+
+// 	// Process the response as needed
+// 	fmt.Println("Response status code:", response.StatusCode)
+
+// }
+
+func GetSmartContractData(port string, token string) []byte {
 	data := map[string]interface{}{
+		"token":  token,
 		"latest": false,
 	}
 	bodyJSON, err := json.Marshal(data)
@@ -485,7 +550,7 @@ func SubscribeSmartContract(contractToken string, port string) {
 
 func FetchSmartContract(smartContractTokenHash string, port string) {
 	data := map[string]interface{}{
-		"smart_contract_hash": smartContractTokenHash,
+		"smart_contract_token": smartContractTokenHash,
 	}
 	bodyJSON, err := json.Marshal(data)
 	if err != nil {
@@ -520,6 +585,39 @@ func FetchSmartContract(smartContractTokenHash string, port string) {
 
 }
 
+func RegisterCallBackUrl(smartContractTokenHash string, port string, endPoint string) {
+	callBackUrl := fmt.Sprintf("http://localhost:%s/%s", port, endPoint)
+	data := map[string]interface{}{
+		"callbackurl": callBackUrl,
+		"token":       smartContractTokenHash,
+	}
+	bodyJSON, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+	url := fmt.Sprintf("http://localhost:%s/api/register-callback-url", port)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		fmt.Println("Error creating HTTP request:", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending HTTP request:", err)
+		return
+	}
+	fmt.Println("Response Status:", resp.Status)
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %s\n", err)
+		return
+	}
+	fmt.Println("Response Body in register callback url :", string(data2))
+}
+
 func ReadProductReview(filePath string) ProductReview {
 	productStateUpdate, _ := os.ReadFile(filePath)
 	var review ProductReview
@@ -534,9 +632,10 @@ func ReadSellerReview(filePath string) SellerReview {
 	return sellerReview
 }
 
-func GetRubixSmartContractPath(contractHash string) string {
+func GetRubixSmartContractPath(contractHash string, smartContractName string) string {
+	//	\\wsl.localhost\Ubuntu-20.04\home\allen\Rubix-Wasm_test\WasmTestNode\SmartContract\QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w
 	//read a file from path
-	rubixcontractPath := fmt.Sprintf("C:/Users/allen/smartcontract-test-rubixgo/rubixgoplatform/windows/WasmTestNode/SmartContract/%s", contractHash)
+	rubixcontractPath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/WasmTestNode/SmartContract/%s/%s", contractHash, smartContractName)
 	return rubixcontractPath
 }
 
@@ -544,9 +643,9 @@ func WasmInput() {
 
 }
 
-func RunSmartContract(wasmPath string, port string) {
+func RunSmartContract(wasmPath string, port string, smartContractTokenHash string) {
 
-	smartContractTokenData := GetSmartContractData(port)
+	smartContractTokenData := GetSmartContractData(port, smartContractTokenHash)
 	fmt.Println("Smart Contract Token Data :", string(smartContractTokenData))
 
 	var dataReply SmartContractDataReply
@@ -555,6 +654,7 @@ func RunSmartContract(wasmPath string, port string) {
 		fmt.Println("Error:", err)
 		return
 	}
+	fmt.Println("Data reply in RunSmartContract", dataReply)
 	runtime := &WasmtimeRuntime{}
 	//runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
 	runtime.Init(wasmPath)
@@ -577,6 +677,9 @@ func RunSmartContract(wasmPath string, port string) {
 		//whenever a new seller or product is registered
 		randomRating := sctReply.SmartContractData
 		floatValue, err := strconv.ParseFloat(randomRating, 32)
+		if err != nil {
+			fmt.Println("Error converting string to float:", err)
+		}
 		sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
 		fmt.Println("Random Rating :", randomRating)
 		fmt.Println("SellerId: ", sellerStateUpdate.DID)

@@ -13,5 +13,8 @@ func Bootup() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/api/v1/contract-input", contract.ContractInputHandler).Methods("POST")
-	http.ListenAndServe(":8080", r)
+	err := http.ListenAndServe(":8080", r)
+	if err != nil {
+		fmt.Printf("Error starting server: %s\n", err)
+	}
 }

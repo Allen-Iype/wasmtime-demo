@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"wasmtime-demo/contract"
 	"wasmtime-demo/server"
 )
 
@@ -15,12 +14,12 @@ func main() {
 	//go server.Bootup()
 	fmt.Println("Server Started  2")
 
-	comment := "Wasm_test"
-	//deployerAddress := "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
-	smartContractToken := "QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w"
-	executorAddress := "bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
+	// comment := "Wasm_test"
+	// //deployerAddress := "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
+	//smartContractToken := "QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w"
+	// executorAddress := "bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
 
-	//contract.GenerateSmartContract("bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa", "rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm", "store_state/rating_contract/rating.json", "rating_contract/src/lib.rs", "20002")
+	//contract.GenerateSmartContract("bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa", "voting_contract/target/wasm32-unknown-unknown/release/voting_contract.wasm", "store_state/vote_contract/votefile.json", "voting_contract/src/lib.rs", "20002")
 
 	//QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w
 	//QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w
@@ -29,14 +28,23 @@ func main() {
 	// fmt.Println("Smart Contract Deployed with ID: ", id)
 	// contract.SignatureResponse(id, "20002")
 	// contractToken := "QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w"
-	port := "20002"
-	// contract.SubscribeSmartContract(contractToken, port)
-	contract.ExecuteSmartContract(comment, executorAddress, 2, "5", smartContractToken, port)
-
+	//port := "20002"
+	// // contract.SubscribeSmartContract(contractToken, port)
+	// contract.ExecuteSmartContract(comment, executorAddress, 2, "5", smartContractToken, port)
 	//contract.DeploySmartContract("Test","bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa",)
 	//deploy
 	//execute
 	//subscribe should be called by others
+	// smartContractToken := "QmavEqYi6rLgahmouKTscyGEkjE28jBrTB73WN68PV1iGT"
+	// contract.FetchSmartContract(smartContractToken, port)
+	// fmt.Println("Starting the delay...")
+
+	// // Sleep for 2 minutes
+	// duration := 2 * time.Minute
+	// time.Sleep(duration)
+
+	// fmt.Println("Delay complete!")
+
 	server.Bootup()
 
 }

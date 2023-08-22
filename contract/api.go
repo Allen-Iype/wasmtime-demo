@@ -36,16 +36,18 @@ func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
 	//TODO: Smart contract should be fetched into the dapp folder or an api must be provided to get the smart contract path
 	// As of now we are hardcoding the port as well as the smart contract path is fetched using the GetRubixSmartContractPath function
 	port := "20002"
-	folderPath := GetRubixSmartContractPath(req.SmartContractHash)
+	folderPath := GetRubixSmartContractPath(req.SmartContractHash, "voting_contract.wasm")
+	fmt.Println(folderPath)
 	_, err1 := os.Stat(folderPath)
+	fmt.Println(err1)
 	if os.IsNotExist(err1) {
 		fmt.Println("Smart Contract not found")
-		FetchSmartContract(req.SmartContractHash, port)
-		RunSmartContract(folderPath, port)
+		//FetchSmartContract(req.SmartContractHash, port)
+		RunSmartContract(folderPath, port, req.SmartContractHash)
 	} else if err == nil {
 		fmt.Printf("Folder '%s' exists", folderPath)
 
-		RunSmartContract(folderPath, port)
+		RunSmartContract(folderPath, port, req.SmartContractHash)
 
 	} else {
 		fmt.Printf("Error while checking folder: %v\n", err)
