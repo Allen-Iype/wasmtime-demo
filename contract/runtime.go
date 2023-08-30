@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/bytecodealliance/wasmtime-go"
+	"github.com/joho/godotenv"
 )
 
 type WasmtimeRuntime struct {
@@ -182,9 +183,9 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 	defer resp.Body.Close()
 }
 
-func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32) []byte {
+func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32, portLength int32, hashLength int32) []byte {
 	r.input = data
-	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength)
+	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength,portLength,hashLength)
 	if err != nil {
 		panic(fmt.Errorf("failed to call function: %v", err))
 	}
@@ -196,6 +197,9 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, lengt
 	fmt.Println("blue :", blue)
 	r.output = make([]byte, length)
 	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
+	err3 := godotenv.Load()
+	port := 
+	nodeName := os.Getenv(port)
 
 	count := Count{}
 	count.Red = int(red)
@@ -576,11 +580,25 @@ func GetRubixSmartContractPath(contractHash string, smartContractName string, no
 	return rubixcontractPath, nil
 }
 
+func GetRubixSchemaPath(contractHash string, nodeName string, schemaName string) (string,error) {
+	rubixSchemaPath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/%s", nodeName, contractHash, schemaName)
+
+	// Check if the path exists
+	if _, err := os.Stat(rubixSchemaPath); err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("Schema path does not exist")
+		}
+		return "", err // Return other errors as is
+	}
+
+	return rubixSchemaPath, nil
+}
+
 func WasmInput() {
 
 }
 
-func RunSmartContract(wasmPath string, port string, smartContractTokenHash string) {
+func RunSmartContract(wasmPath string,schemaPath string, port string, smartContractTokenHash string) {
 
 	smartContractTokenData := GetSmartContractData(port, smartContractTokenHash)
 	fmt.Println("Smart Contract Token Data :", string(smartContractTokenData))
@@ -611,7 +629,7 @@ func RunSmartContract(wasmPath string, port string, smartContractTokenHash strin
 
 		var count Count
 
-		byteValue, _ := os.ReadFile("/home/allen/Rubix-Wasm_test/WasmTestNode3/SmartContract/QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F/schemCodeFile.json")
+		byteValue, _ := os.ReadFile(schemaPath)
 		json.Unmarshal(byteValue, &count)
 
 		fmt.Println("countvalue ", count)
@@ -625,13 +643,26 @@ func RunSmartContract(wasmPath string, port string, smartContractTokenHash strin
 		blue := make([]byte, 4)
 		binary.LittleEndian.PutUint32(blue, uint32(bluevote))
 
+		portByte := make([]byte,4)
+		binary.LittleEndian.PutUint32(portByte, uint32(port))
+
+		smartContractHashByte := make([]byte,4)
+		binary.LittleEndian.PutUint32(smartContractHashByte, uint32(smartContractTokenHash))
+
+		portAndHash := append(portByte, smartContractHashByte...)
+
 		mergevote := append(red, blue...)
 		fmt.Println("mergevote ", mergevote)
 
 		merge := append(inputVote, mergevote...)
+
+		mergeComplete := append(merge,portAndHash...)
+
+		fmt.Println("merge complete", mergeComplete)
+
 		fmt.Println("merge ", merge)
 
-		runtime.RunHandler(merge, int32(len(inputVote)), int32(len(red)), int32(len(blue)))
+		runtime.RunHandler(mergeComplete, int32(len(inputVote)), int32(len(red)), int32(len(blue)), int32(len(portByte)), int32(len(smartContractHashByte)))
 		// Perform your operations on each sctReply item here
 		fmt.Println()
 	}
