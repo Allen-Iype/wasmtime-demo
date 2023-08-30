@@ -2,18 +2,16 @@ package contract
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
-	"strconv"
 
 	"github.com/bytecodealliance/wasmtime-go"
-	"github.com/fxamacker/cbor/v2"
 )
 
 type WasmtimeRuntime struct {
@@ -25,18 +23,9 @@ type WasmtimeRuntime struct {
 	output []byte
 }
 
-type SellerReview struct {
-	DID          string  `cbor:"did"`
-	SellerRating float32 `cbor:"seller_rating"`
-	ProductCount float32 `cbor:"product_count"` //This can be changed to the list of products the seller has and calcuate the length of the array to get the no of products
-}
-
-// Suggestion : Each product can be made into a data token and the product description can be given as the content of the token
-type ProductReview struct {
-	ProductId   string  `cbor:"product_id"`
-	Rating      float32 `cbor:"rating"`
-	RatingCount float32 `cbor:"rating_count"`
-	SellerDID   string  `cbor:"seller_did"`
+type Count struct {
+	Red  int
+	Blue int
 }
 
 type SmartContractDataReply struct {
@@ -71,78 +60,77 @@ func (r *WasmtimeRuntime) Init(wasmFile string) {
 	r.store.SetWasi(wasiConfig)
 	linker.FuncWrap("env", "load_input", r.loadInput)
 	linker.FuncWrap("env", "dump_output", r.dumpOutput)
-	linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
-	linker.FuncWrap("env", "initiate_transfer", r.InitiateTransaction)
+	// linker.FuncWrap("env", "get_account_info", r.getAccountInfo)
+	// linker.FuncWrap("env", "initiate_transfer", r.InitiateTransaction)
 	wasmBytes, err := os.ReadFile(wasmFile)
 	if err != nil {
 		panic(fmt.Errorf("failed to read file: %v", err))
 	}
-	fmt.Println(wasmBytes)
 	module, _ := wasmtime.NewModule(r.store.Engine, wasmBytes)
 	instance, _ := linker.Instantiate(r.store, module)
 	r.memory = instance.GetExport(r.store, "memory").Memory()
 	r.handler = instance.GetFunc(r.store, "handler")
 }
 
-func (r *WasmtimeRuntime) getAccountInfo() {
-	fmt.Println("Get Account Info")
-	port := "20002"
-	productReviewLength := 59 //issue here
-	sellerReviewCbor := r.output[productReviewLength:]
-	fmt.Println("Seller Review CBOR :", sellerReviewCbor)
-	sellerReview := SellerReview{}
-	err := cbor.Unmarshal(sellerReviewCbor, &sellerReview)
-	if err != nil {
-		fmt.Println("Error unmarshaling SellerReview:", err)
-	}
-	fmt.Println("Seller DID :", sellerReview.DID)
-	did := sellerReview.DID
-	//	did := "bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
-	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
-	apiURL, err := url.Parse(baseURL)
-	fmt.Println(apiURL)
-	if err != nil {
-		fmt.Printf("Error parsing URL: %s\n", err)
-		return
-	}
+// func (r *WasmtimeRuntime) getAccountInfo() {
+// 	fmt.Println("Get Account Info")
+// 	port := "20002"
+// 	productReviewLength := 59 //issue here
+// 	sellerReviewCbor := r.output[productReviewLength:]
+// 	fmt.Println("Seller Review CBOR :", sellerReviewCbor)
+// 	sellerReview := SellerReview{}
+// 	err := cbor.Unmarshal(sellerReviewCbor, &sellerReview)
+// 	if err != nil {
+// 		fmt.Println("Error unmarshaling SellerReview:", err)
+// 	}
+// 	fmt.Println("Seller DID :", sellerReview.DID)
+// 	did := sellerReview.DID
+// 	//	did := "bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
+// 	baseURL := fmt.Sprintf("http://localhost:%s/api/get-account-info", port)
+// 	apiURL, err := url.Parse(baseURL)
+// 	fmt.Println(apiURL)
+// 	if err != nil {
+// 		fmt.Printf("Error parsing URL: %s\n", err)
+// 		return
+// 	}
 
-	// Add the query parameter to the URL
-	queryValues := apiURL.Query()
-	queryValues.Add("did", did)
-	queryValues.Add("port", port)
-	fmt.Println("Query Values", queryValues)
-	apiURL.RawQuery = queryValues.Encode()
-	fmt.Println("Api Raw Query URL:", apiURL.RawQuery)
-	fmt.Println("Query Values Encode:", queryValues.Encode())
-	fmt.Println("Api URL string:", apiURL.String())
-	response, err := http.Get(apiURL.String())
-	if err != nil {
-		fmt.Printf("Error making GET request: %s\n", err)
-		return
-	}
-	fmt.Println("Response Status:", response.Status)
-	defer response.Body.Close()
+// 	// Add the query parameter to the URL
+// 	queryValues := apiURL.Query()
+// 	queryValues.Add("did", did)
+// 	queryValues.Add("port", port)
+// 	fmt.Println("Query Values", queryValues)
+// 	apiURL.RawQuery = queryValues.Encode()
+// 	fmt.Println("Api Raw Query URL:", apiURL.RawQuery)
+// 	fmt.Println("Query Values Encode:", queryValues.Encode())
+// 	fmt.Println("Api URL string:", apiURL.String())
+// 	response, err := http.Get(apiURL.String())
+// 	if err != nil {
+// 		fmt.Printf("Error making GET request: %s\n", err)
+// 		return
+// 	}
+// 	fmt.Println("Response Status:", response.Status)
+// 	defer response.Body.Close()
 
-	// Handle the response data as needed
-	if response.StatusCode == http.StatusOK {
-		data, err := io.ReadAll(response.Body)
-		if err != nil {
-			fmt.Printf("Error reading response body: %s\n", err)
-			return
-		}
-		// Process the data as needed
-		fmt.Println("Response Body:", string(data))
-	} else {
-		fmt.Printf("API returned a non-200 status code: %d\n", response.StatusCode)
-		data, err := io.ReadAll(response.Body)
-		if err != nil {
-			fmt.Printf("Error reading error response body: %s\n", err)
-			return
-		}
-		fmt.Println("Error Response Body:", string(data))
-		return
-	}
-}
+// 	// Handle the response data as needed
+// 	if response.StatusCode == http.StatusOK {
+// 		data, err := io.ReadAll(response.Body)
+// 		if err != nil {
+// 			fmt.Printf("Error reading response body: %s\n", err)
+// 			return
+// 		}
+// 		// Process the data as needed
+// 		fmt.Println("Response Body:", string(data))
+// 	} else {
+// 		fmt.Printf("API returned a non-200 status code: %d\n", response.StatusCode)
+// 		data, err := io.ReadAll(response.Body)
+// 		if err != nil {
+// 			fmt.Printf("Error reading error response body: %s\n", err)
+// 			return
+// 		}
+// 		fmt.Println("Error Response Body:", string(data))
+// 		return
+// 	}
+// }
 
 func (r *WasmtimeRuntime) InitiateTransaction() {
 	port := "20002"
@@ -194,52 +182,30 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 	defer resp.Body.Close()
 }
 
-func (r *WasmtimeRuntime) RunHandler(data []byte, productStateLength int32, sellerStateLength int32, rating float32) []byte {
+func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32) []byte {
 	r.input = data
-	_, err := r.handler.Call(r.store, productStateLength, sellerStateLength, rating)
+	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength)
 	if err != nil {
 		panic(fmt.Errorf("failed to call function: %v", err))
 	}
 	return r.output
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, productReviewLength int32, sellerReviewLength int32) {
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, length int32) {
+	fmt.Println("red :", red)
+	fmt.Println("blue :", blue)
+	r.output = make([]byte, length)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
 
-	r.output = make([]byte, productReviewLength+sellerReviewLength)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+productReviewLength+sellerReviewLength])
+	count := Count{}
+	count.Red = int(red)
+	count.Blue = int(blue)
 
-	review := ProductReview{}
-	sellerReview := SellerReview{}
-	cborData := r.output[:productReviewLength]
-	cborDataSeller := r.output[productReviewLength:]
-
-	err3 := cbor.Unmarshal(cborData, &review)
-	if err3 != nil {
-		fmt.Println("Error unmarshaling ProductReview:", err3)
-	}
-	fmt.Println(review.ProductId)
-	fmt.Println(review.Rating)
-	fmt.Println(review.RatingCount)
-
-	err2 := cbor.Unmarshal(cborDataSeller, &sellerReview)
-	if err2 != nil {
-		fmt.Println("Error unmarshaling SellerReview:", err2)
-	}
-
-	content, err := json.Marshal(review)
+	content, err := json.Marshal(count)
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = os.WriteFile("store_state/rating_contract/rating.json", content, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sellerContent, err := json.Marshal(sellerReview)
-	if err != nil {
-		fmt.Println(err)
-	}
-	err = os.WriteFile("store_state/rating_contract/seller_rating.json", sellerContent, 0644)
+	err = os.WriteFile("/home/allen/Rubix-Wasm_test/WasmTestNode3/SmartContract/QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F/schemCodeFile.json", content, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -297,53 +263,6 @@ func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCo
 	// Process the response as needed
 	fmt.Println("Response status code:", resp.StatusCode)
 }
-
-// this hsould include the init and reading of the smart contract part
-// func GenerateSmartContract(did string, wasmPath string, schemaPath string, rawCodePath string, port string) {
-// 	url := fmt.Sprintf("http://localhost:%s/api/generate-smart-contract", port)
-
-// 	// Create a new buffer to write the multipart request
-// 	var requestBody bytes.Buffer
-// 	multipartWriter := multipart.NewWriter(&requestBody)
-
-// 	// Add the fields to the request
-// 	multipartWriter.WriteField("did", did)
-// 	multipartWriter.CreateFormFile("binaryCodePath", wasmPath)
-// 	fmt.Println(wasmPath)
-// 	multipartWriter.CreateFormFile("rawCodePath", rawCodePath)
-// 	fmt.Println(rawCodePath)
-// 	multipartWriter.CreateFormFile("schemaFilePath", schemaPath)
-// 	fmt.Println(schemaPath)
-
-// 	// Close the multipart writer to finalize the request
-// 	multipartWriter.Close()
-
-// 	fmt.Println(requestBody)
-
-// 	// Create the HTTP request
-// 	request, _ := http.NewRequest("POST", url, &requestBody)
-// 	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
-
-// 	// Send the request
-// 	client := &http.Client{}
-// 	response, err := client.Do(request)
-// 	if err != nil {
-// 		fmt.Println("Error making the request:", err)
-// 		return
-// 	}
-// 	defer response.Body.Close()
-// 	data2, err := io.ReadAll(response.Body)
-// 	if err != nil {
-// 		fmt.Printf("Error reading response body: %s\n", err)
-// 		return
-// 	}
-// 	// Process the data as needed
-// 	fmt.Println("Response Body in execute Contract :", string(data2))
-
-// 	// Process the response as needed
-// 	fmt.Println("Response status code:", response.StatusCode)
-
-// }
 
 func GetSmartContractData(port string, token string) []byte {
 	data := map[string]interface{}{
@@ -618,25 +537,43 @@ func RegisterCallBackUrl(smartContractTokenHash string, port string, endPoint st
 	fmt.Println("Response Body in register callback url :", string(data2))
 }
 
-func ReadProductReview(filePath string) ProductReview {
-	productStateUpdate, _ := os.ReadFile(filePath)
-	var review ProductReview
-	json.Unmarshal(productStateUpdate, &review)
-	return review
+// func ReadProductReview(filePath string) ProductReview {
+// 	productStateUpdate, _ := os.ReadFile(filePath)
+// 	var review ProductReview
+// 	json.Unmarshal(productStateUpdate, &review)
+// 	return review
+// }
+
+// func ReadSellerReview(filePath string) SellerReview {
+// 	sellerStateUpdate, _ := os.ReadFile(filePath)
+// 	var sellerReview SellerReview
+// 	json.Unmarshal(sellerStateUpdate, &sellerReview)
+// 	return sellerReview
+// }
+
+func ReadCurrentState(stateFilePath string) string {
+	currentStateJsonFile, err := os.ReadFile(stateFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	// Convert the byte slice to a string
+	currentState := string(currentStateJsonFile)
+	return currentState
 }
 
-func ReadSellerReview(filePath string) SellerReview {
-	sellerStateUpdate, _ := os.ReadFile(filePath)
-	var sellerReview SellerReview
-	json.Unmarshal(sellerStateUpdate, &sellerReview)
-	return sellerReview
-}
+func GetRubixSmartContractPath(contractHash string, smartContractName string, nodeName string) (string, error) {
+	rubixcontractPath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/%s", nodeName, contractHash, smartContractName)
 
-func GetRubixSmartContractPath(contractHash string, smartContractName string) string {
-	//	\\wsl.localhost\Ubuntu-20.04\home\allen\Rubix-Wasm_test\WasmTestNode\SmartContract\QmPa3rqRjUThHtzH57RwBTXvU6K5EmqRTWmKbdnFoWgE1w
-	//read a file from path
-	rubixcontractPath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/WasmTestNode/SmartContract/%s/%s", contractHash, smartContractName)
-	return rubixcontractPath
+	// Check if the path exists
+	if _, err := os.Stat(rubixcontractPath); err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("Smart contract path does not exist")
+		}
+		return "", err // Return other errors as is
+	}
+
+	return rubixcontractPath, nil
 }
 
 func WasmInput() {
@@ -668,42 +605,100 @@ func RunSmartContract(wasmPath string, port string, smartContractTokenHash strin
 		fmt.Println("BlockNo:", sctReply.BlockNo)
 		fmt.Println("BlockId:", sctReply.BlockId)
 		fmt.Println("SmartContractData:", sctReply.SmartContractData)
-		productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
-		encodedProductState, err := cbor.Marshal(productStateUpdate)
-		if err != nil {
-			panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
-		}
-		//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
-		//whenever a new seller or product is registered
-		randomRating := sctReply.SmartContractData
-		floatValue, err := strconv.ParseFloat(randomRating, 32)
-		if err != nil {
-			fmt.Println("Error converting string to float:", err)
-		}
-		sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
-		fmt.Println("Random Rating :", randomRating)
-		fmt.Println("SellerId: ", sellerStateUpdate.DID)
-		fmt.Println("Seller Rating : ", sellerStateUpdate.SellerRating)
-		fmt.Println("Product Count : ", sellerStateUpdate.ProductCount)
 
-		encodedSellerState, err := cbor.Marshal(sellerStateUpdate)
-		if err != nil {
-			panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
-		}
-		review := ProductReview{}
-		err3 := cbor.Unmarshal(encodedProductState, &review)
-		if err3 != nil {
-			fmt.Println("Error unmarshaling ProductReview:", err3)
-		}
+		inputVote := []byte(sctReply.SmartContractData)
+		fmt.Println("inputVote ", inputVote)
 
-		fmt.Printf("%+v", review)
+		var count Count
 
-		fmt.Println("CBOR encoded data :", encodedSellerState)
+		byteValue, _ := os.ReadFile("/home/allen/Rubix-Wasm_test/WasmTestNode3/SmartContract/QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F/schemCodeFile.json")
+		json.Unmarshal(byteValue, &count)
 
-		merge := append(encodedProductState, encodedSellerState...)
-		runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(floatValue))
+		fmt.Println("countvalue ", count)
+		//instead of this we can pass the entire json string and do this things at the rust side.
+		redvote := count.Red
+		bluevote := count.Blue
+
+		red := make([]byte, 4)
+		binary.LittleEndian.PutUint32(red, uint32(redvote))
+
+		blue := make([]byte, 4)
+		binary.LittleEndian.PutUint32(blue, uint32(bluevote))
+
+		mergevote := append(red, blue...)
+		fmt.Println("mergevote ", mergevote)
+
+		merge := append(inputVote, mergevote...)
+		fmt.Println("merge ", merge)
+
+		runtime.RunHandler(merge, int32(len(inputVote)), int32(len(red)), int32(len(blue)))
 		// Perform your operations on each sctReply item here
 		fmt.Println()
 	}
 
 }
+
+// func RunSmartContract(wasmPath string, port string, smartContractTokenHash string) {
+
+// 	smartContractTokenData := GetSmartContractData(port, smartContractTokenHash)
+// 	fmt.Println("Smart Contract Token Data :", string(smartContractTokenData))
+
+// 	var dataReply SmartContractDataReply
+
+// 	if err := json.Unmarshal(smartContractTokenData, &dataReply); err != nil {
+// 		fmt.Println("Error:", err)
+// 		return
+// 	}
+// 	fmt.Println("Data reply in RunSmartContract", dataReply)
+// 	runtime := &WasmtimeRuntime{}
+// 	//runtime.Init("rating_contract/target/wasm32-unknown-unknown/release/rating_contract.wasm")
+// 	runtime.Init(wasmPath)
+// 	//While this loop is running, there is a question whether any state condition needs to be checked at this point.
+
+// 	// instead of the runhandler calling all the inputs, a save state function must be created just to update the state, rest everything should
+// 	//be handled by the runhandler
+
+// 	// Process each SCTDataReply item in the array
+// 	for _, sctReply := range dataReply.SCTDataReply {
+// 		fmt.Println("BlockNo:", sctReply.BlockNo)
+// 		fmt.Println("BlockId:", sctReply.BlockId)
+// 		fmt.Println("SmartContractData:", sctReply.SmartContractData)
+// 		productStateUpdate := ReadProductReview("store_state/rating_contract/rating.json")
+// 		encodedProductState, err := cbor.Marshal(productStateUpdate)
+// 		if err != nil {
+// 			panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
+// 		}
+// 		//	randomRating := rand.Intn(5) + 1 //A random rating from 1-5 given for testing[Here it is considered as the rating a user gave]
+// 		//whenever a new seller or product is registered
+// 		randomRating := sctReply.SmartContractData
+// 		floatValue, err := strconv.ParseFloat(randomRating, 32)
+// 		if err != nil {
+// 			fmt.Println("Error converting string to float:", err)
+// 		}
+// 		sellerStateUpdate := ReadSellerReview("store_state/rating_contract/seller_rating.json")
+// 		fmt.Println("Random Rating :", randomRating)
+// 		fmt.Println("SellerId: ", sellerStateUpdate.DID)
+// 		fmt.Println("Seller Rating : ", sellerStateUpdate.SellerRating)
+// 		fmt.Println("Product Count : ", sellerStateUpdate.ProductCount)
+
+// 		encodedSellerState, err := cbor.Marshal(sellerStateUpdate)
+// 		if err != nil {
+// 			panic(fmt.Errorf("failed to encode string as CBOR: %v", err))
+// 		}
+// 		review := ProductReview{}
+// 		err3 := cbor.Unmarshal(encodedProductState, &review)
+// 		if err3 != nil {
+// 			fmt.Println("Error unmarshaling ProductReview:", err3)
+// 		}
+
+// 		fmt.Printf("%+v", review)
+
+// 		fmt.Println("CBOR encoded data :", encodedSellerState)
+
+// 		merge := append(encodedProductState, encodedSellerState...)
+// 		runtime.RunHandler(merge, int32(len(encodedProductState)), int32(len(encodedSellerState)), float32(floatValue))
+// 		// Perform your operations on each sctReply item here
+// 		fmt.Println()
+// 	}
+
+// }

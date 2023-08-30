@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type ContractInputRequest struct {
-	SmartContractHash string `json:"smart_contract_hash"`
+	Port              string `json:"port"`
+	SmartContractHash string `json:"smart_contract_hash"` //port should also be added here, so that the api can understand which node.
 }
 
 type ContractInputResponse struct {
@@ -35,8 +38,14 @@ func ContractInputHandler(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: Smart contract should be fetched into the dapp folder or an api must be provided to get the smart contract path
 	// As of now we are hardcoding the port as well as the smart contract path is fetched using the GetRubixSmartContractPath function
-	port := "20002"
-	folderPath := GetRubixSmartContractPath(req.SmartContractHash, "voting_contract.wasm")
+	err3 := godotenv.Load()
+	if err3 != nil {
+		fmt.Println("Error loading .env file:", err3)
+		return
+	}
+	port := req.Port
+	nodeName := os.Getenv(port)
+	folderPath, _ := GetRubixSmartContractPath(req.SmartContractHash, "binaryCodeFile.wasm", nodeName)
 	fmt.Println(folderPath)
 	_, err1 := os.Stat(folderPath)
 	fmt.Println(err1)
