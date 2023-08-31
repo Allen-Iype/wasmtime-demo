@@ -18,12 +18,16 @@ func GenerateSmartContract() {
 	contract.GenerateSmartContract(did, wasmPath, schemaPath, rawCodePath, port)
 }
 
+func smartContractHash() string {
+	return "QmX9VcVT4A1n856CuTp9rcxgLqtMoabKrriuG8VNekJAid"
+}
+
 func DeploySmartContract() {
 	comment := "Deploying Test Voting Contract"
 	deployerAddress := "12D3KooWCR4BW7gfPmCZhAJusqv1PoS49jgqTGvofcG4WPyg8FxV.bafybmifb4rbwykckpbcnekcha23nckrldhkcqyrhegl7oz44njgci5vhqa"
 	quorumType := 2
 	rbtAmount := 1
-	smartContractToken := "QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F"
+	smartContractToken := smartContractHash()
 	port := "20002"
 	id := contract.DeploySmartContract(comment, deployerAddress, quorumType, rbtAmount, smartContractToken, port)
 	fmt.Println("Contract ID: " + id)
@@ -36,7 +40,7 @@ func ExecuteSmartContractNode1() {
 	executorAddress := "12D3KooWPfPgt1zZeQ2WcA6JGUB5u8bLNk8dPtYKiJ3MJQoeKtu7.bafybmigka7xjp73j2oy256xsmyfd66gjv6fi3ybfyjghshij4idnxui6ea"
 	quorumType := 2
 	smartContractData := "Red"
-	smartContractToken := "QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F"
+	smartContractToken := smartContractHash()
 	port := "20009"
 	contract.ExecuteSmartContract(comment, executorAddress, quorumType, smartContractData, smartContractToken, port)
 }
@@ -46,7 +50,7 @@ func ExecuteSmartContractNode2() {
 	executorAddress := "12D3KooWMQaGLNGof8AfoUQh6a7aDRS2JpjkYyUrn2nzcX5bqMko.bafybmigipihqh5smgeyokgqvh7nd3yki6epaxfbefa3jxf5msw7ltj7ujm"
 	quorumType := 2
 	smartContractData := "Blue"
-	smartContractToken := "QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F"
+	smartContractToken := smartContractHash()
 	port := "20010"
 	contract.ExecuteSmartContract(comment, executorAddress, quorumType, smartContractData, smartContractToken, port)
 }
@@ -56,20 +60,23 @@ func ExecuteSmartContractNode3() {
 	executorAddress := "12D3KooWMQuGUzoWq5EgdhBQ6YdqTQKmxpSP5s5sKyTRMsxDe1f6.bafybmidxxslkym52zhywijju54hdhvybjuf5uhj3ugcfpdr6vwko25mlma"
 	quorumType := 2
 	smartContractData := "Red"
-	smartContractToken := "QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F"
+	smartContractToken := smartContractHash()
 	port := "20011"
 	contract.ExecuteSmartContract(comment, executorAddress, quorumType, smartContractData, smartContractToken, port)
 }
 
 func SubscribeSmartContractNode1(contractToken string, port string) {
+	//contract.RegisterCallBackUrl(contractToken, "8080", "/api/v1/contract-input", port)
 	contract.SubscribeSmartContract(contractToken, port)
 }
 
 func SubscribeSmartContractNode2(contractToken string, port string) {
+	//	contract.RegisterCallBackUrl(contractToken, "8080", "/api/v1/contract-input", port)
 	contract.SubscribeSmartContract(contractToken, port)
 }
 
 func SubscribeSmartContractNode3(contractToken string, port string) {
+	//contract.RegisterCallBackUrl(contractToken, "8080", "/api/v1/contract-input", port)
 	contract.SubscribeSmartContract(contractToken, port)
 }
 
@@ -100,13 +107,13 @@ func main() {
 			GenerateSmartContract()
 		case "2":
 			fmt.Println("Subscribing Smart Contract in Node 1")
-			SubscribeSmartContractNode1("QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F", "20009")
+			SubscribeSmartContractNode1(smartContractHash(), "20009")
 		case "3":
 			fmt.Println("Subscribing Smart Contract in Node 2")
-			SubscribeSmartContractNode2("QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F", "20010")
+			SubscribeSmartContractNode2(smartContractHash(), "20010")
 		case "4":
 			fmt.Println("Subscribing Smart Contract in Node 3")
-			SubscribeSmartContractNode3("QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F", "20011")
+			SubscribeSmartContractNode3(smartContractHash(), "20011")
 		case "5":
 			fmt.Println("Deploying Smart Contract")
 			DeploySmartContract()

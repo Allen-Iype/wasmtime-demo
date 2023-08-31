@@ -185,21 +185,27 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 
 func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32, portLength int32, hashLength int32) []byte {
 	r.input = data
-	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength,portLength,hashLength)
+	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength, portLength, hashLength)
 	if err != nil {
 		panic(fmt.Errorf("failed to call function: %v", err))
 	}
 	return r.output
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, length int32) {
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, port_length int32, hash_length int32) {
 	fmt.Println("red :", red)
 	fmt.Println("blue :", blue)
-	r.output = make([]byte, length)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+length])
+	r.output = make([]byte, port_length+hash_length)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+(port_length+hash_length)])
 	err3 := godotenv.Load()
-	port := 
+	if err3 != nil {
+		fmt.Println("Error loading .env file:", err3)
+		return
+	}
+	port := string(r.output[:port_length])
+	smartContracthash := string(r.output[port_length:])
 	nodeName := os.Getenv(port)
+	stateFilePath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/schemaCodeFile.json", nodeName, smartContracthash)
 
 	count := Count{}
 	count.Red = int(red)
@@ -209,7 +215,7 @@ func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, lengt
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = os.WriteFile("/home/allen/Rubix-Wasm_test/WasmTestNode3/SmartContract/QmeDmZkYmjHMpYmuLDLNuUQjXdvYcFrMK6FbdtDcWna69F/schemCodeFile.json", content, 0644)
+	err = os.WriteFile(stateFilePath, content, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -508,18 +514,18 @@ func FetchSmartContract(smartContractTokenHash string, port string) {
 
 }
 
-func RegisterCallBackUrl(smartContractTokenHash string, port string, endPoint string) {
-	callBackUrl := fmt.Sprintf("http://localhost:%s/%s", port, endPoint)
+func RegisterCallBackUrl(smartContractTokenHash string, urlPort string, endPoint string, nodePort string) {
+	callBackUrl := fmt.Sprintf("http://localhost:%s/%s", urlPort, endPoint)
 	data := map[string]interface{}{
-		"callbackurl": callBackUrl,
-		"token":       smartContractTokenHash,
+		"CallBackURL":        callBackUrl,
+		"SmartContractToken": smartContractTokenHash,
 	}
 	bodyJSON, err := json.Marshal(data)
 	if err != nil {
 		fmt.Println("Error marshaling JSON:", err)
 		return
 	}
-	url := fmt.Sprintf("http://localhost:%s/api/register-callback-url", port)
+	url := fmt.Sprintf("http://localhost:%s/api/register-callback-url", nodePort)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		fmt.Println("Error creating HTTP request:", err)
@@ -580,7 +586,7 @@ func GetRubixSmartContractPath(contractHash string, smartContractName string, no
 	return rubixcontractPath, nil
 }
 
-func GetRubixSchemaPath(contractHash string, nodeName string, schemaName string) (string,error) {
+func GetRubixSchemaPath(contractHash string, nodeName string, schemaName string) (string, error) {
 	rubixSchemaPath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/%s", nodeName, contractHash, schemaName)
 
 	// Check if the path exists
@@ -598,7 +604,7 @@ func WasmInput() {
 
 }
 
-func RunSmartContract(wasmPath string,schemaPath string, port string, smartContractTokenHash string) {
+func RunSmartContract(wasmPath string, schemaPath string, port string, smartContractTokenHash string) {
 
 	smartContractTokenData := GetSmartContractData(port, smartContractTokenHash)
 	fmt.Println("Smart Contract Token Data :", string(smartContractTokenData))
@@ -623,6 +629,9 @@ func RunSmartContract(wasmPath string,schemaPath string, port string, smartContr
 		fmt.Println("BlockNo:", sctReply.BlockNo)
 		fmt.Println("BlockId:", sctReply.BlockId)
 		fmt.Println("SmartContractData:", sctReply.SmartContractData)
+		if sctReply.BlockNo == 0 {
+			continue // Skip this iteration and proceed to the next one when the block number is zero
+		}
 
 		inputVote := []byte(sctReply.SmartContractData)
 		fmt.Println("inputVote ", inputVote)
@@ -643,11 +652,9 @@ func RunSmartContract(wasmPath string,schemaPath string, port string, smartContr
 		blue := make([]byte, 4)
 		binary.LittleEndian.PutUint32(blue, uint32(bluevote))
 
-		portByte := make([]byte,4)
-		binary.LittleEndian.PutUint32(portByte, uint32(port))
+		portByte := []byte(port)
 
-		smartContractHashByte := make([]byte,4)
-		binary.LittleEndian.PutUint32(smartContractHashByte, uint32(smartContractTokenHash))
+		smartContractHashByte := []byte(smartContractTokenHash)
 
 		portAndHash := append(portByte, smartContractHashByte...)
 
@@ -656,7 +663,7 @@ func RunSmartContract(wasmPath string,schemaPath string, port string, smartContr
 
 		merge := append(inputVote, mergevote...)
 
-		mergeComplete := append(merge,portAndHash...)
+		mergeComplete := append(merge, portAndHash...)
 
 		fmt.Println("merge complete", mergeComplete)
 
