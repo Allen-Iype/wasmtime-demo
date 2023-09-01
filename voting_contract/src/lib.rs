@@ -32,6 +32,30 @@ fn dummy7() {
 
 }
 
+fn dummy8() {
+
+}
+
+fn dummy9() {
+
+}
+
+fn dummy10() {
+
+}
+
+fn dummy11() {
+
+}
+
+fn dummyfjdgd(){
+    println!();
+}
+
+fn dummyLatest() {
+
+}
+
 #[no_mangle]
 pub extern "C" fn handler(input_vote_length: usize , red_length: usize , blue_length: usize, port_length: usize, hash_length: usize) {
     // load input data
@@ -75,9 +99,17 @@ pub extern "C" fn handler(input_vote_length: usize , red_length: usize , blue_le
         dummy4();
         dummy5();
         dummy6();
-        dummy7();
+        dummy10();
+        dummy8();
+        dummy9();
+        dummy11();
+
+        dummyLatest();
     }
 }
 
 
 //////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
+// 
+//

@@ -19,7 +19,7 @@ func GenerateSmartContract() {
 }
 
 func smartContractHash() string {
-	return "QmX9VcVT4A1n856CuTp9rcxgLqtMoabKrriuG8VNekJAid"
+	return "QmS7odhDJRG7B356PJvyXAUFiGYPPfPtzGPNHJoj6jgrgd"
 }
 
 func DeploySmartContract() {
@@ -65,18 +65,21 @@ func ExecuteSmartContractNode3() {
 	contract.ExecuteSmartContract(comment, executorAddress, quorumType, smartContractData, smartContractToken, port)
 }
 
-func SubscribeSmartContractNode1(contractToken string, port string) {
-	//contract.RegisterCallBackUrl(contractToken, "8080", "/api/v1/contract-input", port)
+func SubscribeSmartContractNode1(port string) {
+	contractToken := smartContractHash()
+	contract.RegisterCallBackUrl(contractToken, "8080", "api/v1/contract-input", port)
 	contract.SubscribeSmartContract(contractToken, port)
 }
 
-func SubscribeSmartContractNode2(contractToken string, port string) {
-	//	contract.RegisterCallBackUrl(contractToken, "8080", "/api/v1/contract-input", port)
+func SubscribeSmartContractNode2(port string) {
+	contractToken := smartContractHash()
+	contract.RegisterCallBackUrl(contractToken, "8080", "api/v1/contract-input", port)
 	contract.SubscribeSmartContract(contractToken, port)
 }
 
-func SubscribeSmartContractNode3(contractToken string, port string) {
-	//contract.RegisterCallBackUrl(contractToken, "8080", "/api/v1/contract-input", port)
+func SubscribeSmartContractNode3(port string) {
+	contractToken := smartContractHash()
+	contract.RegisterCallBackUrl(contractToken, "8080", "api/v1/contract-input", port)
 	contract.SubscribeSmartContract(contractToken, port)
 }
 
@@ -107,13 +110,13 @@ func main() {
 			GenerateSmartContract()
 		case "2":
 			fmt.Println("Subscribing Smart Contract in Node 1")
-			SubscribeSmartContractNode1(smartContractHash(), "20009")
+			SubscribeSmartContractNode1("20009")
 		case "3":
 			fmt.Println("Subscribing Smart Contract in Node 2")
-			SubscribeSmartContractNode2(smartContractHash(), "20010")
+			SubscribeSmartContractNode2("20010")
 		case "4":
 			fmt.Println("Subscribing Smart Contract in Node 3")
-			SubscribeSmartContractNode3(smartContractHash(), "20011")
+			SubscribeSmartContractNode3("20011")
 		case "5":
 			fmt.Println("Deploying Smart Contract")
 			DeploySmartContract()

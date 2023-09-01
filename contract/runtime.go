@@ -626,6 +626,9 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 
 	// Process each SCTDataReply item in the array
 	for _, sctReply := range dataReply.SCTDataReply {
+		// The fix which needs to be done is that each time an input is triggered the entire tokenchain is read and the state is updated this
+		//needs to be changed such that the latest block which is updated should be checked and the input must be updated .
+
 		fmt.Println("BlockNo:", sctReply.BlockNo)
 		fmt.Println("BlockId:", sctReply.BlockId)
 		fmt.Println("SmartContractData:", sctReply.SmartContractData)
