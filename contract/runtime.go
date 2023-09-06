@@ -28,7 +28,7 @@ type Count struct {
 	Red             int
 	Blue            int
 	LatestBlockHash string
-	LatestBlockNo   string
+	LatestBlockNo   int
 }
 
 type SmartContractDataReply struct {
@@ -185,33 +185,38 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 	defer resp.Body.Close()
 }
 
-func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32, portLength int32, hashLength int32) []byte {
+func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32, portLength int32, hashLength int32, blockIdLength int32, blockNoLength int32) []byte {
 	r.input = data
-	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength, portLength, hashLength)
+	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength, portLength, hashLength, blockIdLength, blockNoLength)
 	if err != nil {
 		panic(fmt.Errorf("failed to call function: %v", err))
 	}
 	return r.output
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, port_length int32, hash_length int32) {
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, port_length int32, hash_length int32, block_id_length int32, block_no int32) {
 	fmt.Println("red :", red)
 	fmt.Println("blue :", blue)
-	r.output = make([]byte, port_length+hash_length)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+(port_length+hash_length)])
+	r.output = make([]byte, port_length+hash_length+block_id_length)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+(port_length+hash_length+block_id_length)])
 	err3 := godotenv.Load()
 	if err3 != nil {
 		fmt.Println("Error loading .env file:", err3)
 		return
 	}
+	// port := string(r.output[:port_length])
+	// smartContracthash := string(r.output[port_length:])
 	port := string(r.output[:port_length])
-	smartContracthash := string(r.output[port_length:])
+	smartContractHash := string(r.output[port_length : port_length+hash_length])
+	blockID := string(r.output[port_length+hash_length:])
 	nodeName := os.Getenv(port)
-	stateFilePath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/schemaCodeFile.json", nodeName, smartContracthash)
+	stateFilePath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/schemaCodeFile.json", nodeName, smartContractHash)
 
 	count := Count{}
 	count.Red = int(red)
 	count.Blue = int(blue)
+	count.LatestBlockHash = blockID
+	count.LatestBlockNo = int(block_no)
 
 	content, err := json.Marshal(count)
 	if err != nil {
@@ -628,71 +633,75 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 
 	// Process each SCTDataReply item in the array
 	// Check BlockId from the end of the array
-	for i := len(dataReply.SCTDataReply) - 1; i >= 0; i-- {
-		if dataReply.SCTDataReply[i].BlockId == "def" {
-			// Do some operations after finding the desired BlockId
-			fmt.Println("Found BlockId 'def' at index", i)
+
+	var count Count
+
+	byteValue, _ := os.ReadFile(schemaPath)
+	json.Unmarshal(byteValue, &count)
+
+	//	targetBlockNo := int(count.LatestBlockNo)
+	targetBlockNo := count.LatestBlockNo
+
+	//	previousBlock := count.LatestBlockHash
+	redvote := count.Red
+	bluevote := count.Blue
+
+	//sctReply := dataReply.SCTDataReply
+	// Check if the target block number is within the bounds of the array
+	if int(targetBlockNo) < len(dataReply.SCTDataReply) {
+		// Perform operations on elements after the target block
+		for i := int(targetBlockNo) + 1; i < len(dataReply.SCTDataReply); i++ {
+			// Access and operate on reply.SCTDataReply[i]
+			fmt.Println("Performing operation on BlockNo:", dataReply.SCTDataReply[i].BlockNo)
+
+			// if dataReply.SCTDataReply[i].BlockNo == 0 {
+			// 	continue // Skip this iteration and proceed to the next one when the block number is zero
+			// }
+
+			//	if dataReply.SCTDataReply[i].BlockNo == 0 || dataReply.SCTDataReply[i-1].BlockId == previousBlock {
+			fmt.Println("previous block is same")
+
+			inputVote := []byte(dataReply.SCTDataReply[i].SmartContractData)
+			inputBlockId := []byte(dataReply.SCTDataReply[i].BlockId)
+			inputBlockNo := make([]byte, 4)
+			binary.LittleEndian.PutUint32(inputBlockNo, uint32(dataReply.SCTDataReply[i].BlockNo))
+
+			red := make([]byte, 4)
+			binary.LittleEndian.PutUint32(red, uint32(redvote))
+
+			blue := make([]byte, 4)
+			binary.LittleEndian.PutUint32(blue, uint32(bluevote))
+
+			portByte := []byte(port)
+
+			smartContractHashByte := []byte(smartContractTokenHash)
+
+			portAndHash := append(portByte, smartContractHashByte...)
+
+			mergevote := append(red, blue...)
+			fmt.Println("mergevote ", mergevote)
+
+			merge := append(inputVote, mergevote...)
+
+			mergePortAndHash := append(merge, portAndHash...)
+
+			blockIdAndno := append(inputBlockId, inputBlockNo...)
+
+			mergeComplete := append(blockIdAndno, mergePortAndHash...)
+
+			fmt.Println("merge complete", mergeComplete)
+
+			runtime.RunHandler(mergeComplete, int32(len(inputVote)), int32(len(red)), int32(len(blue)), int32(len(portByte)), int32(len(smartContractHashByte)), int32(len(inputBlockId)), int32(len(inputBlockNo)))
+
+			// } else {
+			// 	fmt.Println("previous block is not matching")
+
+			// }
+
 			// Perform your operations here
-			break // Exit the loop after finding the desired BlockId
 		}
-	}
-	for _, sctReply := range dataReply.SCTDataReply {
-		// The fix which needs to be done is that each time an input is triggered the entire tokenchain is read and the state is updated this
-		//needs to be changed such that the latest block which is updated should be checked and the input must be updated .
-
-		fmt.Println("BlockNo:", sctReply.BlockNo)
-		fmt.Println("BlockId:", sctReply.BlockId)
-		fmt.Println("SmartContractData:", sctReply.SmartContractData)
-		if sctReply.BlockNo == 0 {
-			continue // Skip this iteration and proceed to the next one when the block number is zero
-		}
-
-		inputVote := []byte(sctReply.SmartContractData)
-		inputBlockId := []byte(sctReply.BlockId)
-		fmt.Println("inputVote ", inputVote)
-
-		var count Count
-
-		byteValue, _ := os.ReadFile(schemaPath)
-		json.Unmarshal(byteValue, &count)
-
-		fmt.Println("countvalue ", count)
-		//instead of this we can pass the entire json string and do this things at the rust side.
-		redvote := count.Red
-		bluevote := count.Blue
-		currentBlock := count.LatestBlockHash
-		fmt.Println("Previously Executed BlocK hash = ", currentBlock)
-
-		if sctReply.BlockId == currentBlock {
-
-		}
-
-		red := make([]byte, 4)
-		binary.LittleEndian.PutUint32(red, uint32(redvote))
-
-		blue := make([]byte, 4)
-		binary.LittleEndian.PutUint32(blue, uint32(bluevote))
-
-		portByte := []byte(port)
-
-		smartContractHashByte := []byte(smartContractTokenHash)
-
-		portAndHash := append(portByte, smartContractHashByte...)
-
-		mergevote := append(red, blue...)
-		fmt.Println("mergevote ", mergevote)
-
-		merge := append(inputVote, mergevote...)
-
-		mergeComplete := append(merge, portAndHash...)
-
-		fmt.Println("merge complete", mergeComplete)
-
-		fmt.Println("merge ", merge)
-
-		runtime.RunHandler(mergeComplete, int32(len(inputVote)), int32(len(red)), int32(len(blue)), int32(len(portByte)), int32(len(smartContractHashByte)))
-		// Perform your operations on each sctReply item here
-		fmt.Println()
+	} else {
+		fmt.Println("Target block number is out of bounds")
 	}
 
 }
