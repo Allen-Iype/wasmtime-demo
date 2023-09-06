@@ -19,7 +19,7 @@ func GenerateSmartContract() {
 }
 
 func smartContractHash() string {
-	return "QmS7odhDJRG7B356PJvyXAUFiGYPPfPtzGPNHJoj6jgrgd"
+	return "QmVMRfgtnVfRm1RorvwpRUkWdhcJ4ewLWfx4exMdJpUhVi"
 }
 
 func DeploySmartContract() {

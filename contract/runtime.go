@@ -25,8 +25,10 @@ type WasmtimeRuntime struct {
 }
 
 type Count struct {
-	Red  int
-	Blue int
+	Red             int
+	Blue            int
+	LatestBlockHash string
+	LatestBlockNo   string
 }
 
 type SmartContractDataReply struct {
@@ -625,6 +627,15 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 	//be handled by the runhandler
 
 	// Process each SCTDataReply item in the array
+	// Check BlockId from the end of the array
+	for i := len(dataReply.SCTDataReply) - 1; i >= 0; i-- {
+		if dataReply.SCTDataReply[i].BlockId == "def" {
+			// Do some operations after finding the desired BlockId
+			fmt.Println("Found BlockId 'def' at index", i)
+			// Perform your operations here
+			break // Exit the loop after finding the desired BlockId
+		}
+	}
 	for _, sctReply := range dataReply.SCTDataReply {
 		// The fix which needs to be done is that each time an input is triggered the entire tokenchain is read and the state is updated this
 		//needs to be changed such that the latest block which is updated should be checked and the input must be updated .
@@ -637,6 +648,7 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 		}
 
 		inputVote := []byte(sctReply.SmartContractData)
+		inputBlockId := []byte(sctReply.BlockId)
 		fmt.Println("inputVote ", inputVote)
 
 		var count Count
@@ -648,6 +660,12 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 		//instead of this we can pass the entire json string and do this things at the rust side.
 		redvote := count.Red
 		bluevote := count.Blue
+		currentBlock := count.LatestBlockHash
+		fmt.Println("Previously Executed BlocK hash = ", currentBlock)
+
+		if sctReply.BlockId == currentBlock {
+
+		}
 
 		red := make([]byte, 4)
 		binary.LittleEndian.PutUint32(red, uint32(redvote))

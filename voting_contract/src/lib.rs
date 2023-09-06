@@ -56,6 +56,10 @@ fn dummyLatest() {
 
 }
 
+fn dummy50() {
+
+}
+
 #[no_mangle]
 pub extern "C" fn handler(input_vote_length: usize , red_length: usize , blue_length: usize, port_length: usize, hash_length: usize) {
     // load input data
@@ -103,6 +107,7 @@ pub extern "C" fn handler(input_vote_length: usize , red_length: usize , blue_le
         dummy8();
         dummy9();
         dummy11();
+        dummy50();
 
         dummyLatest();
     }
