@@ -25,10 +25,9 @@ type WasmtimeRuntime struct {
 }
 
 type Count struct {
-	Red             int
-	Blue            int
-	LatestBlockHash string
-	LatestBlockNo   int
+	Red           int32
+	Blue          int32
+	LatestBlockNo int32
 }
 
 type SmartContractDataReply struct {
@@ -185,43 +184,52 @@ func (r *WasmtimeRuntime) InitiateTransaction() {
 	defer resp.Body.Close()
 }
 
-func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32, portLength int32, hashLength int32, blockIdLength int32, blockNoLength int32) []byte {
+func (r *WasmtimeRuntime) RunHandler(data []byte, inputVoteLength int32, redLength int32, blueLength int32, portLength int32, hashLength int32, blockNoLength int32) []byte {
 	r.input = data
-	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength, portLength, hashLength, blockIdLength, blockNoLength)
+	_, err := r.handler.Call(r.store, inputVoteLength, redLength, blueLength, portLength, hashLength, blockNoLength)
 	if err != nil {
 		panic(fmt.Errorf("failed to call function: %v", err))
 	}
 	return r.output
 }
 
-func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, port_length int32, hash_length int32, block_id_length int32, block_no int32) {
+func (r *WasmtimeRuntime) dumpOutput(pointer int32, red int32, blue int32, block_no int32, port_length int32, hash_length int32) {
 	fmt.Println("red :", red)
 	fmt.Println("blue :", blue)
-	r.output = make([]byte, port_length+hash_length+block_id_length)
-	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+(port_length+hash_length+block_id_length)])
+	fmt.Println("port_length :", port_length)
+	fmt.Println("hash_length :", hash_length)
+	fmt.Println("block_no :", block_no)
+	fmt.Println("pointer :", pointer)
+	r.output = make([]byte, port_length+hash_length)
+	copy(r.output, r.memory.UnsafeData(r.store)[pointer:pointer+(port_length+hash_length)])
+	fmt.Println("output array :", r.output)
 	err3 := godotenv.Load()
 	if err3 != nil {
 		fmt.Println("Error loading .env file:", err3)
 		return
 	}
-	// port := string(r.output[:port_length])
-	// smartContracthash := string(r.output[port_length:])
 	port := string(r.output[:port_length])
-	smartContractHash := string(r.output[port_length : port_length+hash_length])
-	blockID := string(r.output[port_length+hash_length:])
+	smartContracthash := string(r.output[port_length:])
+	// port := string(r.output[:port_length])
+	fmt.Println("The port is :", port)
+	// smartContractHash := string(r.output[port_length : p])
+	fmt.Println("Smart Contract Hash in Dump Output :", smartContracthash)
 	nodeName := os.Getenv(port)
-	stateFilePath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/schemaCodeFile.json", nodeName, smartContractHash)
+	stateFilePath := fmt.Sprintf("/home/allen/Rubix-Wasm_test/%s/SmartContract/%s/schemaCodeFile.json", nodeName, smartContracthash)
 
 	count := Count{}
-	count.Red = int(red)
-	count.Blue = int(blue)
-	count.LatestBlockHash = blockID
-	count.LatestBlockNo = int(block_no)
+	count.Red = int32(red)
+	count.Blue = int32(blue)
+	count.LatestBlockNo = int32(block_no)
+
+	fmt.Println("Count in Dump Output :", count)
 
 	content, err := json.Marshal(count)
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	fmt.Println("Json Marshalled Count :", content)
 	err = os.WriteFile(stateFilePath, content, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -662,7 +670,9 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 			fmt.Println("previous block is same")
 
 			inputVote := []byte(dataReply.SCTDataReply[i].SmartContractData)
+			fmt.Println("Input vote is :", inputVote)
 			inputBlockId := []byte(dataReply.SCTDataReply[i].BlockId)
+			fmt.Println("Input block id is :", inputBlockId)
 			inputBlockNo := make([]byte, 4)
 			binary.LittleEndian.PutUint32(inputBlockNo, uint32(dataReply.SCTDataReply[i].BlockNo))
 
@@ -685,13 +695,13 @@ func RunSmartContract(wasmPath string, schemaPath string, port string, smartCont
 
 			mergePortAndHash := append(merge, portAndHash...)
 
-			blockIdAndno := append(inputBlockId, inputBlockNo...)
+			//	blockIdAndNo := append(inputBlockId, inputBlockNo...)
 
-			mergeComplete := append(blockIdAndno, mergePortAndHash...)
+			mergeComplete := append(mergePortAndHash, inputBlockNo...)
 
 			fmt.Println("merge complete", mergeComplete)
 
-			runtime.RunHandler(mergeComplete, int32(len(inputVote)), int32(len(red)), int32(len(blue)), int32(len(portByte)), int32(len(smartContractHashByte)), int32(len(inputBlockId)), int32(len(inputBlockNo)))
+			runtime.RunHandler(mergeComplete, int32(len(inputVote)), int32(len(red)), int32(len(blue)), int32(len(portByte)), int32(len(smartContractHashByte)), int32(len(inputBlockNo)))
 
 			// } else {
 			// 	fmt.Println("previous block is not matching")
