@@ -1,2 +1,21 @@
-This is a demo project for learning the working of wasmtime-go and implementing and testing how wasm works. The Rust codes in this project implement various logics which are compiled into wasm and is used inside the Go test cases using wasmtime-go. The rust code is compiled to wasm using "cargo build --target wasm32-unknown-unknown"
-Refactored the project such that the go-code for each contract have been moved to the corresponding Rust-project folders. This is done for the easy testing of individual contracts being added and also for easy reference. To run the corresponding go code copy it to the wasmtime-demo project directory and rename the function name and file-name to main. Then executing "go run main.go" would do the trick.
+
+# Wasmtime-Go and Rust Integration Demo
+
+This project serves as a demonstration for learning how `wasmtime-go` works and testing the integration of WebAssembly (WASM) with Go using Rust for the logic implementation. 
+
+## Overview
+
+The Rust components of this project implement various logical operations which are then compiled into WebAssembly (WASM) modules. These modules are integrated and used within Go test cases via `wasmtime-go`.
+
+## Project Structure
+
+The project has been refactored to enhance testability and maintainability:
+- Go code relevant to each Rust contract has been moved to the corresponding Rust project folder.
+- This refactoring aids in the easy testing of individual contracts and serves as a quick reference.
+
+## Compiling Rust to WASM
+
+To compile the Rust code to a WASM module, use the following command:
+
+```sh
+cargo build --target wasm32-unknown-unknown
